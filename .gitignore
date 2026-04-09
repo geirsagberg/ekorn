@@ -1,0 +1,16 @@
+node_modules
+.DS_Store
+.vscode
+.husky/_
+dist
+dist-ssr
+*.local
+.env
+.convex
+.nitro
+.tanstack
+.wrangler
+.output
+.vinxi
+__unconfig*
+todos.json

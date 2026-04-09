@@ -1,0 +1,108 @@
+# Ekorn — Current Product Spec
+
+## Summary
+Ekorn is a mobile-first web app for capturing grocery receipts and, later, turning them into structured spending insights.
+
+The product vision is still receipt intelligence and spending analysis, but that is not the current implementation target.
+
+## Current Goal
+The current goal is a single mobile-first screen with one clear action: add a receipt photo.
+
+That action should let the user choose a photo from:
+- the camera
+- the photo gallery or file picker
+
+This first slice is intentionally narrow. It exists to establish the app shell, mobile interaction model, and the first user action before adding OCR, AI, data modeling, dashboards, or admin tooling.
+
+## Phase 0 Scope
+
+### In Scope Now
+- A web app built with Bun, TanStack Start, React, TypeScript, TanStack Query, Convex, and Tailwind CSS v4.
+- A single mobile-first screen.
+- One primary button for adding a receipt photo.
+- Browser support for taking a photo with the device camera when available.
+- Browser support for selecting an existing image from the gallery or file picker.
+- Clear empty-state UI focused on the first receipt.
+- Basic loading and failure states only if needed for the photo selection flow.
+
+### Explicitly Out of Scope For Now
+- OCR extraction.
+- AI-based item normalization.
+- AI-based tagging.
+- Receipt parsing.
+- Receipt list pages.
+- Receipt detail pages.
+- Dashboards and summaries.
+- Taxonomy and tag hierarchy.
+- Learned mappings.
+- Duplicate detection.
+- Authentication.
+- Shared household access.
+- PDF upload.
+- Admin tooling.
+- Background jobs or processing pipelines.
+
+## Primary User Story
+As a user on my phone, I want to tap one button and add a receipt photo from the camera or gallery so that I can quickly capture a receipt right after shopping.
+
+## Screen Requirements
+
+### Layout
+- Design for mobile first.
+- The screen should work comfortably one-handed on a phone.
+- The primary action should be obvious without scrolling.
+- The screen should start simple and avoid secondary navigation for now.
+
+### Interaction
+- Provide one primary button for adding a photo.
+- The implementation may use one native file input with camera-friendly attributes if that is the simplest and most reliable approach.
+- If the platform supports it, the flow should make it easy to capture directly from the camera.
+- If the user does not want to use the camera, the same flow should allow choosing an existing photo.
+
+### States
+- Initial empty state.
+- Picking state if needed.
+- Selected-photo state is allowed if needed for the first iteration, but not required unless it helps validate the flow.
+- Error state only if the browser rejects or fails the file selection step.
+
+## UX Principles For This Phase
+- Mobile first.
+- One action, one screen.
+- No dashboard thinking yet.
+- No speculative complexity.
+- Prefer reliable browser behavior over clever UI.
+
+## Technical Direction For This Phase
+- Package manager/runtime: Bun.
+- App framework: TanStack Start in SPA mode.
+- UI: React + TypeScript.
+- Data fetching and cache sync: TanStack Query.
+- Backend: Convex, but backend features may remain mostly unused in this phase.
+- Use the latest stable versions available at implementation time for core dependencies.
+
+## Deferred Product Vision
+These are still part of the broader product direction, but they are intentionally deferred until after the capture screen is solid:
+- OCR-based receipt extraction.
+- AI-assisted item normalization.
+- AI-assisted item tagging.
+- Receipt history.
+- Spending dashboards.
+- Tag hierarchies and rollups.
+- Learned mappings and reuse.
+- Duplicate detection.
+- Authentication and household sharing.
+- Admin and audit views.
+
+## Likely Next Phases
+1. Show the selected image on the same screen after capture or selection.
+2. Persist the selected receipt asset.
+3. Add basic receipt history.
+4. Add OCR extraction.
+5. Add structured receipt review.
+
+## Success Criteria For Phase 0
+- The app opens to a single mobile-first screen.
+- The user can tap one clear button to add a receipt photo.
+- On supported devices, the flow can use the camera.
+- The same flow also supports choosing an existing image.
+- The experience feels clean and obvious on a phone.
