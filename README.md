@@ -24,10 +24,17 @@ bun run dev
 
 ## Receipt OCR
 
-Receipt OCR preview uses AWS Textract `AnalyzeExpense`.
+Receipt OCR preview defaults to OpenAI and can optionally use AWS.
 
 Set these server-side environment variables before using the OCR flow:
 
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` optional override
+- `OCR_PROVIDER` optional, defaults to `openai`
+
+If you want to use AWS instead:
+
+- `OCR_PROVIDER=aws`
 - `AWS_REGION` or `AWS_DEFAULT_REGION`
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`

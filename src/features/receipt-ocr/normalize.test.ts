@@ -1,73 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildReceiptOcrPreviewResult,
   computeReceiptSanityCheck,
-  normalizeReceiptOcrResult,
 } from './normalize'
 
-describe('normalizeReceiptOcrResult', () => {
-  it('maps line items, summary totals, and currency from a receipt payload', () => {
-    const result = normalizeReceiptOcrResult({
-      ExpenseDocuments: [
-        {
-          LineItemGroups: [
-            {
-              LineItems: [
-                {
-                  LineItemExpenseFields: [
-                    {
-                      Type: { Text: 'ITEM' },
-                      ValueDetection: { Text: 'Milk', Confidence: 98.4 },
-                    },
-                    {
-                      Type: { Text: 'PRICE' },
-                      ValueDetection: { Text: '2.50', Confidence: 99.1 },
-                    },
-                  ],
-                },
-                {
-                  LineItemExpenseFields: [
-                    {
-                      Type: { Text: 'ITEM' },
-                      ValueDetection: { Text: 'Bread', Confidence: 97.8 },
-                    },
-                    {
-                      Type: { Text: 'PRICE' },
-                      ValueDetection: { Text: '4.50', Confidence: 98.6 },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-          SummaryFields: [
-            {
-              Type: { Text: 'SUBTOTAL' },
-              ValueDetection: { Text: '7.00' },
-              Currency: { Code: 'USD' },
-            },
-            {
-              Type: { Text: 'TOTAL' },
-              ValueDetection: { Text: '8.25' },
-              Currency: { Code: 'USD' },
-            },
-          ],
-        },
+describe('buildReceiptOcrPreviewResult', () => {
+  it('adds warnings for missing amounts and mismatched totals', () => {
+    const result = buildReceiptOcrPreviewResult({
+      items: [
+        { text: 'Milk', amount: 2.5 },
+        { text: 'Bread', amount: null },
       ],
+      subtotal: 7,
+      total: 8.25,
+      currency: 'USD',
+      rawWarnings: ['Model was uncertain about one row.'],
     })
 
-    expect(result.items).toEqual([
-      { text: 'Milk', amount: 2.5, confidence: 98.8 },
-      { text: 'Bread', amount: 4.5, confidence: 98.2 },
+    expect(result.rawWarnings).toEqual([
+      'Model was uncertain about one row.',
+      'Some line items are missing amounts.',
+      'Line item amounts do not match the receipt summary.',
     ])
-    expect(result.subtotal).toBe(7)
-    expect(result.total).toBe(8.25)
-    expect(result.currency).toBe('USD')
     expect(result.sanityCheck).toEqual({
-      itemSum: 7,
+      itemSum: 2.5,
       compareTarget: 'subtotal',
       expected: 7,
-      delta: 0,
-      status: 'ok',
+      delta: -4.5,
+      status: 'warning',
     })
   })
 })

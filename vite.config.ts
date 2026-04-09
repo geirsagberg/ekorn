@@ -19,6 +19,7 @@ const config = defineConfig({
   ],
   test: {
     environment: 'jsdom',
+    include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.{ts,tsx}'],
     exclude: ['tests/e2e/**'],
   },
 })
