@@ -14,6 +14,20 @@ test.describe('receipt OCR', () => {
   )
 
   test('extracts line items from a real receipt image', async ({ page }) => {
+    const uploadLogs: string[] = []
+
+    page.on('console', (message) => {
+      if (message.type() !== 'info') {
+        return
+      }
+
+      const text = message.text()
+
+      if (text.includes('[receipt-upload]')) {
+        uploadLogs.push(text)
+      }
+    })
+
     await page.goto('/')
     await expect(page.getByTestId('receipt-capture-ready')).toBeAttached()
 
@@ -47,5 +61,10 @@ test.describe('receipt OCR', () => {
     )
     await expect(summary).toContainText(/Total.*158[,.]55|158[,.]55.*Total/)
     await expect(page.getByTestId('ocr-error')).toHaveCount(0)
+    await expect
+      .poll(() =>
+        uploadLogs.find((entry) => entry.includes('"status":"resized"')),
+      )
+      .toBeTruthy()
   })
 })

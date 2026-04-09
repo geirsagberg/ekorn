@@ -24,6 +24,10 @@ interface SelectedPhoto {
   previewUrl: string
 }
 
+const MAX_RECEIPT_UPLOAD_DIMENSION = 1600
+const RECEIPT_UPLOAD_QUALITY = 0.82
+const RECEIPT_UPLOAD_MIME_TYPE = 'image/jpeg'
+
 type AnalysisStatus =
   | 'idle'
   | 'analyzing'
@@ -101,8 +105,20 @@ export function ReceiptCaptureScreen({
     })
 
     const currentRequest = ++requestSequence.current
+    const uploadFile = await prepareReceiptUpload(file)
+
+    if (requestSequence.current !== currentRequest) {
+      return
+    }
+
+    if (uploadFile.size > MAX_RECEIPT_IMAGE_SIZE_BYTES) {
+      setAnalysisStatus('error')
+      setErrorMessage('Choose an image smaller than 10 MB.')
+      return
+    }
+
     const formData = new FormData()
-    formData.set('receiptImage', file)
+    formData.set('receiptImage', uploadFile)
 
     try {
       await waitForNextPaint()
@@ -416,6 +432,20 @@ function formatFileSize(fileSizeInBytes: number) {
   return `${(fileSizeInBytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+async function prepareReceiptUpload(file: File) {
+  try {
+    return await downscaleReceiptImage(file)
+  } catch {
+    logReceiptUpload({
+      status: 'resize_failed',
+      originalName: file.name,
+      originalSizeBytes: file.size,
+      originalType: file.type,
+    })
+    return file
+  }
+}
+
 function buildDisplayItems(items: ReceiptOcrPreviewResult['items']) {
   const counts = new Map<string, number>()
 
@@ -435,4 +465,161 @@ function waitForNextPaint() {
   return new Promise<void>((resolve) => {
     requestAnimationFrame(() => resolve())
   })
+}
+
+async function downscaleReceiptImage(file: File) {
+  if (
+    typeof document === 'undefined' ||
+    typeof createImageBitmap !== 'function'
+  ) {
+    logReceiptUpload({
+      status: 'resize_unavailable',
+      originalName: file.name,
+      originalSizeBytes: file.size,
+      originalType: file.type,
+    })
+    return file
+  }
+
+  const imageBitmap = await createImageBitmap(file)
+  const sourceWidth = imageBitmap.width
+  const sourceHeight = imageBitmap.height
+  const { width, height } = getScaledDimensions(sourceWidth, sourceHeight)
+  const shouldResize = width !== sourceWidth || height !== sourceHeight
+  const outputType = shouldConvertToJpeg(file.type)
+    ? RECEIPT_UPLOAD_MIME_TYPE
+    : file.type
+
+  if (!shouldResize && outputType === file.type) {
+    imageBitmap.close()
+    logReceiptUpload({
+      status: 'kept_original',
+      originalName: file.name,
+      originalSizeBytes: file.size,
+      originalType: file.type,
+      width: sourceWidth,
+      height: sourceHeight,
+    })
+    return file
+  }
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+
+  const context = canvas.getContext('2d')
+
+  if (!context) {
+    imageBitmap.close()
+    logReceiptUpload({
+      status: 'resize_context_unavailable',
+      originalName: file.name,
+      originalSizeBytes: file.size,
+      originalType: file.type,
+    })
+    return file
+  }
+
+  context.drawImage(imageBitmap, 0, 0, width, height)
+  imageBitmap.close()
+
+  const blob = await canvasToBlob(
+    canvas,
+    outputType,
+    outputType === RECEIPT_UPLOAD_MIME_TYPE
+      ? RECEIPT_UPLOAD_QUALITY
+      : undefined,
+  )
+
+  if (!blob) {
+    logReceiptUpload({
+      status: 'resize_blob_unavailable',
+      originalName: file.name,
+      originalSizeBytes: file.size,
+      originalType: file.type,
+      targetWidth: width,
+      targetHeight: height,
+      outputType,
+    })
+    return file
+  }
+
+  const resizedFile = new File(
+    [blob],
+    buildUploadFileName(file.name, blob.type || outputType),
+    {
+      type: blob.type || outputType,
+      lastModified: file.lastModified,
+    },
+  )
+
+  if (
+    resizedFile.size >= file.size &&
+    file.size <= MAX_RECEIPT_IMAGE_SIZE_BYTES &&
+    outputType === file.type
+  ) {
+    logReceiptUpload({
+      status: 'kept_original',
+      originalName: file.name,
+      originalSizeBytes: file.size,
+      originalType: file.type,
+      width: sourceWidth,
+      height: sourceHeight,
+    })
+    return file
+  }
+
+  logReceiptUpload({
+    status: 'resized',
+    originalName: file.name,
+    originalSizeBytes: file.size,
+    originalType: file.type,
+    resizedName: resizedFile.name,
+    resizedSizeBytes: resizedFile.size,
+    resizedType: resizedFile.type,
+    sourceWidth,
+    sourceHeight,
+    targetWidth: width,
+    targetHeight: height,
+  })
+
+  return resizedFile
+}
+
+function getScaledDimensions(sourceWidth: number, sourceHeight: number) {
+  const scale = Math.min(
+    1,
+    MAX_RECEIPT_UPLOAD_DIMENSION / Math.max(sourceWidth, sourceHeight),
+  )
+
+  return {
+    width: Math.max(1, Math.round(sourceWidth * scale)),
+    height: Math.max(1, Math.round(sourceHeight * scale)),
+  }
+}
+
+function shouldConvertToJpeg(mimeType: string) {
+  return mimeType === 'image/jpeg' || mimeType === 'image/png'
+}
+
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality?: number,
+) {
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), type, quality)
+  })
+}
+
+function buildUploadFileName(fileName: string, mimeType: string) {
+  if (mimeType !== RECEIPT_UPLOAD_MIME_TYPE) {
+    return fileName
+  }
+
+  return `${fileName.replace(/\.[^.]+$/, '')}.jpg`
+}
+
+function logReceiptUpload(details: Record<string, string | number>) {
+  console.info(`[receipt-upload] ${JSON.stringify(details)}`)
 }
