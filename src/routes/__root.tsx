@@ -1,3 +1,4 @@
+import CssBaseline from '@mui/material/CssBaseline'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import type { QueryClient } from '@tanstack/react-query'
 import {
@@ -6,10 +7,8 @@ import {
   Scripts,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import * as React from 'react'
 import ConvexProvider from '../integrations/convex/provider'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
-import appCss from '../styles.css?url'
 
 interface MyRouterContext {
   queryClient: QueryClient
@@ -34,12 +33,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
           'Receipt intelligence for structured item extraction and tag-based spending analysis.',
       },
     ],
-    links: [
-      {
-        rel: 'stylesheet',
-        href: appCss,
-      },
-    ],
   }),
   shellComponent: RootDocument,
 })
@@ -51,14 +44,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body suppressHydrationWarning>
-        <div id="boot-loader" aria-hidden="true">
-          <div id="boot-loader-content">
-            <div id="boot-loader-spinner" />
-            <div id="boot-loader-label">Loading Ekorn</div>
-          </div>
-        </div>
         <ConvexProvider>
-          <BootLoaderCleanup />
+          <CssBaseline />
           {children}
           <TanStackDevtools
             config={{
@@ -77,26 +64,4 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </body>
     </html>
   )
-}
-
-function BootLoaderCleanup() {
-  React.useEffect(() => {
-    const loader = document.getElementById('boot-loader')
-
-    if (!loader) {
-      return
-    }
-
-    loader.setAttribute('data-hidden', 'true')
-
-    const timeoutId = window.setTimeout(() => {
-      loader.remove()
-    }, 180)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [])
-
-  return null
 }
