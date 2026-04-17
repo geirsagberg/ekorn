@@ -43,6 +43,8 @@ describe('ReceiptCaptureScreen', () => {
     expect(await screen.findByText('Extracted lines')).toBeTruthy()
     expect(screen.getByText('Milk')).toBeTruthy()
     expect(screen.getByText('Bread')).toBeTruthy()
+    expect(screen.getByText('Dairy')).toBeTruthy()
+    expect(screen.getByText(/91% confidence/)).toBeTruthy()
     expect(screen.getByText('Subtotal')).toBeTruthy()
     expect(analyzeReceipt).toHaveBeenCalledTimes(1)
   })
@@ -131,8 +133,22 @@ function createOcrResult(
 ): ReceiptOcrPreviewResult {
   return {
     items: [
-      { text: 'Milk', amount: 2.5 },
-      { text: 'Bread', amount: 4.5 },
+      {
+        text: 'Milk',
+        amount: 2.5,
+        categories: ['Food', 'Dairy'],
+        categorizationConfidence: 0.91,
+        categorizationSource: 'normalized_cache',
+        isLowConfidence: false,
+      },
+      {
+        text: 'Bread',
+        amount: 4.5,
+        categories: ['Food', 'Bakery'],
+        categorizationConfidence: 0.88,
+        categorizationSource: 'ai_existing',
+        isLowConfidence: false,
+      },
     ],
     subtotal: 7,
     total: 8.25,

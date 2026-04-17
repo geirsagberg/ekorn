@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { categorizeReceiptPreviewResult } from './categorization'
 import { createReceiptOcrProvider } from './providers'
 import {
   MAX_RECEIPT_IMAGE_SIZE_BYTES,
@@ -24,8 +25,13 @@ export const analyzeReceiptPreview = createServerFn({ method: 'POST' })
 
     try {
       const provider = createReceiptOcrProvider()
+      const previewResult = await provider.analyzeReceipt(file)
 
-      return await provider.analyzeReceipt(file)
+      try {
+        return await categorizeReceiptPreviewResult(previewResult)
+      } catch {
+        return previewResult
+      }
     } catch (error) {
       throw toReceiptOcrError(error)
     }

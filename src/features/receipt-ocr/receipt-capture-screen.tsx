@@ -1,6 +1,7 @@
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Container from '@mui/material/Container'
 import Paper from '@mui/material/Paper'
@@ -315,23 +316,92 @@ export function ReceiptCaptureScreen({
                       ({ item, key }) => (
                         <Stack
                           key={key}
-                          direction="row"
-                          spacing={2}
-                          sx={{ justifyContent: 'space-between' }}
+                          spacing={0.9}
                           data-testid="ocr-line-item"
                         >
-                          <Typography sx={{ color: '#2f2417' }}>
-                            {item.text}
-                          </Typography>
-                          <Typography
-                            sx={{
-                              color: '#2f2417',
-                              fontVariantNumeric: 'tabular-nums',
-                              whiteSpace: 'nowrap',
-                            }}
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            sx={{ justifyContent: 'space-between' }}
                           >
-                            {formatMoney(item.amount, analysisResult.currency)}
-                          </Typography>
+                            <Typography sx={{ color: '#2f2417' }}>
+                              {item.text}
+                            </Typography>
+                            <Typography
+                              sx={{
+                                color: '#2f2417',
+                                fontVariantNumeric: 'tabular-nums',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {formatMoney(
+                                item.amount,
+                                analysisResult.currency,
+                              )}
+                            </Typography>
+                          </Stack>
+
+                          {(item.categories?.length ?? 0) > 0 ? (
+                            <Stack spacing={0.6}>
+                              <Stack
+                                direction="row"
+                                spacing={0.75}
+                                sx={{ flexWrap: 'wrap', rowGap: 0.75 }}
+                              >
+                                {(item.categories ?? []).map((category) => (
+                                  <Chip
+                                    key={`${key}-${category}`}
+                                    label={category}
+                                    size="small"
+                                    variant={
+                                      item.isLowConfidence
+                                        ? 'outlined'
+                                        : 'filled'
+                                    }
+                                    sx={{
+                                      borderRadius: 999,
+                                      bgcolor: item.isLowConfidence
+                                        ? 'transparent'
+                                        : 'rgba(47, 125, 87, 0.12)',
+                                      borderColor: item.isLowConfidence
+                                        ? 'rgba(176, 127, 42, 0.35)'
+                                        : 'transparent',
+                                      color: item.isLowConfidence
+                                        ? '#8a6430'
+                                        : '#215740',
+                                      '& .MuiChip-label': {
+                                        px: 1.1,
+                                        fontWeight: 600,
+                                      },
+                                    }}
+                                  />
+                                ))}
+                              </Stack>
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: item.isLowConfidence
+                                    ? '#8a6430'
+                                    : '#6b5a45',
+                                }}
+                              >
+                                Categories
+                                {item.categorizationConfidence !== null
+                                  ? ` · ${formatConfidence(
+                                      item.categorizationConfidence,
+                                    )} confidence`
+                                  : ''}
+                              </Typography>
+                            </Stack>
+                          ) : item.categorizationConfidence !== null ? (
+                            <Typography
+                              variant="caption"
+                              sx={{ color: '#8a6430' }}
+                            >
+                              Suggested category confidence:{' '}
+                              {formatConfidence(item.categorizationConfidence)}
+                            </Typography>
+                          ) : null}
                         </Stack>
                       ),
                     )}
@@ -430,6 +500,10 @@ function formatFileSize(fileSizeInBytes: number) {
   }
 
   return `${(fileSizeInBytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatConfidence(value: number) {
+  return `${Math.round(value * 100)}%`
 }
 
 async function prepareReceiptUpload(file: File) {

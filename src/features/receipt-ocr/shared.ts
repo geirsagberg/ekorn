@@ -2,14 +2,27 @@ export const MAX_RECEIPT_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 
 export type ReceiptOcrProviderName = 'openai' | 'aws'
 
-export interface ReceiptOcrItem {
+export type ReceiptItemCategorizationSource =
+  | 'raw_cache'
+  | 'normalized_cache'
+  | 'ai_existing'
+  | 'ai_new'
+
+export interface ReceiptOcrParsedItem {
   text: string
   amount: number | null
   confidence?: number
 }
 
+export interface ReceiptOcrPreviewItem extends ReceiptOcrParsedItem {
+  categories: string[]
+  categorizationConfidence: number | null
+  categorizationSource: ReceiptItemCategorizationSource | null
+  isLowConfidence: boolean
+}
+
 export interface ReceiptOcrParsedResult {
-  items: ReceiptOcrItem[]
+  items: ReceiptOcrParsedItem[]
   subtotal: number | null
   total: number | null
   currency: string | null
@@ -25,7 +38,7 @@ export interface ReceiptSanityCheck {
 }
 
 export interface ReceiptOcrPreviewResult {
-  items: ReceiptOcrItem[]
+  items: ReceiptOcrPreviewItem[]
   subtotal: number | null
   total: number | null
   currency: string | null

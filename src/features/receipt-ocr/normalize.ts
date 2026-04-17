@@ -71,6 +71,13 @@ export function buildReceiptOcrPreviewResult(
 
   return {
     ...parsedResult,
+    items: parsedResult.items.map((item) => ({
+      ...item,
+      categories: [],
+      categorizationConfidence: null,
+      categorizationSource: null,
+      isLowConfidence: false,
+    })),
     sanityCheck,
     rawWarnings: [...rawWarnings],
   }

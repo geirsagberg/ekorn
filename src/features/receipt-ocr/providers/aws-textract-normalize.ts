@@ -1,4 +1,4 @@
-import type { ReceiptOcrItem, ReceiptOcrParsedResult } from '../shared'
+import type { ReceiptOcrParsedItem, ReceiptOcrParsedResult } from '../shared'
 
 interface TextractValueDetection {
   Text?: string
@@ -74,11 +74,13 @@ function extractReceiptItems(lineItemGroups: TextractLineItemGroup[]) {
   return lineItemGroups.flatMap((lineItemGroup) =>
     (lineItemGroup.LineItems ?? [])
       .map((lineItem) => mapReceiptItem(lineItem.LineItemExpenseFields ?? []))
-      .filter((item): item is ReceiptOcrItem => item !== null),
+      .filter((item): item is ReceiptOcrParsedItem => item !== null),
   )
 }
 
-function mapReceiptItem(fields: TextractExpenseField[]): ReceiptOcrItem | null {
+function mapReceiptItem(
+  fields: TextractExpenseField[],
+): ReceiptOcrParsedItem | null {
   const textField =
     findFieldByTypes(fields, TEXT_FIELD_TYPES) ??
     fields.find((field) => {
