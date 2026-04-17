@@ -1,6 +1,6 @@
 # Ekorn
 
-Receipt intelligence web app scaffolded with Bun, TanStack Start, React, TypeScript, TanStack Query, Convex, Tailwind CSS v4, and DaisyUI.
+Receipt intelligence web app scaffolded with Bun, TanStack Start, React, TypeScript, TanStack Query, Convex, and Material UI.
 
 ## Getting Started
 

@@ -1,38 +1,50 @@
 # Ekorn — Current Product Spec
 
 ## Summary
-Ekorn is a mobile-first web app for capturing grocery receipts and, later, turning them into structured spending insights.
+Ekorn is a mobile-first web app for capturing grocery receipts and turning them into structured receipt data.
 
-The product vision is still receipt intelligence and spending analysis, but that is not the current implementation target.
+The current product slice is a receipt OCR preview flow on a single mobile-first capture screen, while longer-term spending analysis and richer receipt management remain ahead.
 
 ## Current Goal
-The current goal is a single mobile-first screen with one clear action: add a receipt photo.
+The current goal is a single mobile-first receipt capture and preview screen with one clear primary action: add a receipt photo.
 
 That action should let the user choose a photo from:
 - the camera
 - the photo gallery or file picker
 
-This first slice is intentionally narrow. It exists to establish the app shell, mobile interaction model, and the first user action before adding OCR, AI, data modeling, dashboards, or admin tooling.
+After selection, the app should:
+- show the selected receipt image on the same screen
+- run OCR analysis on the uploaded image
+- show extracted line items and summary totals when available
+- show clear loading, warning, and failure states
 
-## Phase 0 Scope
+This slice is intentionally narrow. It focuses on the app shell, mobile interaction model, image upload flow, and OCR preview, with persistence, history, review workflows, and dashboards planned separately.
+
+## Current Slice Scope
 
 ### In Scope Now
-- A web app built with Bun, TanStack Start, React, TypeScript, TanStack Query, Convex, and Tailwind CSS v4.
+- A web app built with Bun, TanStack Start, React, TypeScript, TanStack Query, Convex, and Material UI.
 - A single mobile-first screen.
 - One primary button for adding a receipt photo.
 - Browser support for taking a photo with the device camera when available.
 - Browser support for selecting an existing image from the gallery or file picker.
 - Clear empty-state UI focused on the first receipt.
-- Basic loading and failure states only if needed for the photo selection flow.
+- Selected-photo preview on the same screen.
+- Basic client-side receipt image validation, including image-only uploads and file-size limits.
+- Receipt OCR preview on upload.
+- Extracted line items display.
+- Extracted subtotal and total display when present.
+- Sanity-check warnings when extracted line items do not match receipt totals closely enough.
+- Retryable error states when OCR fails.
 
 ### Explicitly Out of Scope For Now
-- OCR extraction.
-- AI-based item normalization.
+- Persisting uploaded receipt assets.
+- Receipt list pages or history views.
+- Receipt detail pages beyond the current capture-and-preview screen.
+- Structured receipt review and correction flows.
+- AI-based item normalization beyond OCR extraction.
 - AI-based tagging.
-- Receipt parsing.
-- Receipt list pages.
-- Receipt detail pages.
-- Dashboards and summaries.
+- Spending dashboards and summaries across multiple receipts.
 - Taxonomy and tag hierarchy.
 - Learned mappings.
 - Duplicate detection.
@@ -43,7 +55,7 @@ This first slice is intentionally narrow. It exists to establish the app shell, 
 - Background jobs or processing pipelines.
 
 ## Primary User Story
-As a user on my phone, I want to tap one button and add a receipt photo from the camera or gallery so that I can quickly capture a receipt right after shopping.
+As a user on my phone, I want to tap one button and add a receipt photo from the camera or gallery so that I can quickly capture a receipt right after shopping and immediately preview what the app extracted.
 
 ## Screen Requirements
 
@@ -58,34 +70,41 @@ As a user on my phone, I want to tap one button and add a receipt photo from the
 - The implementation may use one native file input with camera-friendly attributes if that is the simplest and most reliable approach.
 - If the platform supports it, the flow should make it easy to capture directly from the camera.
 - If the user does not want to use the camera, the same flow should allow choosing an existing photo.
+- After a photo is selected, the same screen should present the preview and OCR result without navigating away.
 
 ### States
 - Initial empty state.
 - Picking state if needed.
-- Selected-photo state is allowed if needed for the first iteration, but not required unless it helps validate the flow.
-- Error state only if the browser rejects or fails the file selection step.
+- Selected-photo state.
+- OCR analyzing state.
+- Success state with extracted receipt data.
+- Warning state when the OCR result is usable but needs review.
+- Error state for invalid files or failed OCR analysis.
 
 ## UX Principles For This Phase
 - Mobile first.
-- One action, one screen.
+- One screen, one primary action.
 - No dashboard thinking yet.
 - No speculative complexity.
 - Prefer reliable browser behavior over clever UI.
+- Prefer a useful preview over premature workflow branching.
 
 ## Technical Direction For This Phase
 - Package manager/runtime: Bun.
 - App framework: TanStack Start in SPA mode.
 - UI: React + TypeScript.
 - Data fetching and cache sync: TanStack Query.
-- Backend: Convex, but backend features may remain mostly unused in this phase.
+- Backend: Convex, with persistence work planned in a later phase.
+- OCR preview runs through pluggable providers.
 - Use the latest stable versions available at implementation time for core dependencies.
 
 ## Deferred Product Vision
-These are still part of the broader product direction, but they are intentionally deferred until after the capture screen is solid:
-- OCR-based receipt extraction.
+These remain part of the broader product direction:
+- Persisted receipt storage.
+- Receipt history.
+- Structured receipt review and correction.
 - AI-assisted item normalization.
 - AI-assisted item tagging.
-- Receipt history.
 - Spending dashboards.
 - Tag hierarchies and rollups.
 - Learned mappings and reuse.
@@ -94,15 +113,19 @@ These are still part of the broader product direction, but they are intentionall
 - Admin and audit views.
 
 ## Likely Next Phases
-1. Show the selected image on the same screen after capture or selection.
-2. Persist the selected receipt asset.
-3. Add basic receipt history.
-4. Add OCR extraction.
-5. Add structured receipt review.
+1. Persist the selected receipt asset.
+2. Add basic receipt history.
+3. Add structured receipt review and correction.
+4. Add post-review normalization and tagging.
+5. Add multi-receipt spending views and summaries.
 
-## Success Criteria For Phase 0
+## Success Criteria For The Current Slice
 - The app opens to a single mobile-first screen.
 - The user can tap one clear button to add a receipt photo.
 - On supported devices, the flow can use the camera.
 - The same flow also supports choosing an existing image.
+- The selected image is shown on the same screen.
+- OCR analysis starts automatically after image selection.
+- Extracted items and summary totals are shown when parsing succeeds.
+- The app shows clear warning and error feedback when analysis is incomplete or fails.
 - The experience feels clean and obvious on a phone.
