@@ -19,3 +19,12 @@ test-results
 tests/fixtures/*.jpg
 tests/fixtures/*.jpeg
 tests/fixtures/*.png
+
+# Local AI tooling and generated guidance
+.agents/
+.claude/
+.junie/
+.windsurf/
+CLAUDE.md
+skills-lock.json
+convex/_generated/ai/
