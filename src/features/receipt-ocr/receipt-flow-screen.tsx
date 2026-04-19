@@ -5,6 +5,7 @@ import Box from '@mui/material/Box'
 import Container from '@mui/material/Container'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
+import { PwaInstallPrompt } from '#/integrations/pwa/install-prompt'
 import { ReceiptCaptureScreen } from './receipt-capture-screen'
 import { ReceiptDetailScreen } from './receipt-detail-screen'
 import { ReceiptHistoryScreen } from './receipt-history-screen'
@@ -69,6 +70,8 @@ export function ReceiptFlowScreen({
         }}
       >
         <Stack spacing={2.5} sx={{ flex: 1 }}>
+          <PwaInstallPrompt isActive={view.kind !== 'detail'} />
+
           {storageError ? (
             <Alert severity="warning">{storageError}</Alert>
           ) : null}

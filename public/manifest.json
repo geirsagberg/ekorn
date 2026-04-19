@@ -1,25 +1,68 @@
 {
-  "short_name": "TanStack App",
-  "name": "Create TanStack App Sample",
+  "id": "/",
+  "name": "Ekorn",
+  "short_name": "Ekorn",
+  "description": "Capture grocery receipts, keep structured history, and reopen Ekorn from your Android home screen.",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "type": "image/x-icon",
+      "purpose": "any"
     },
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "logo512-maskable.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "portrait",
+  "background_color": "#f6f2ea",
+  "theme_color": "#2f7d57",
+  "shortcuts": [
+    {
+      "name": "Capture receipt",
+      "short_name": "Capture",
+      "description": "Open Ekorn ready to capture a new receipt.",
+      "url": "/",
+      "icons": [
+        {
+          "src": "logo512-maskable.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "maskable"
+        }
+      ]
+    },
+    {
+      "name": "Receipt history",
+      "short_name": "History",
+      "description": "Jump straight to your saved receipt history.",
+      "url": "/#history",
+      "icons": [
+        {
+          "src": "logo512-maskable.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "maskable"
+        }
+      ]
+    }
+  ]
 }

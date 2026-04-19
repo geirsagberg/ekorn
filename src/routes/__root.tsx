@@ -8,6 +8,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { createServerFn } from '@tanstack/react-start'
 import { getAuth } from '@workos/authkit-tanstack-react-start'
+import { ServiceWorkerRegistration } from '#/integrations/pwa/service-worker-registration'
 import { createServerSessionState } from '../integrations/auth/server-session'
 import ConvexProvider from '../integrations/convex/provider'
 import { syncServerSessionToConvexQueryClient } from '../integrations/convex/server-auth'
@@ -29,13 +30,27 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
     syncServerSessionToConvexQueryClient(ctx.context.convexQueryClient, session)
   },
   head: () => ({
+    links: [
+      {
+        rel: 'manifest',
+        href: '/manifest.json',
+      },
+      {
+        rel: 'icon',
+        href: '/favicon.ico',
+      },
+      {
+        rel: 'apple-touch-icon',
+        href: '/logo192.png',
+      },
+    ],
     meta: [
       {
         charSet: 'utf-8',
       },
       {
         name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
+        content: 'width=device-width, initial-scale=1, viewport-fit=cover',
       },
       {
         title: 'Ekorn',
@@ -44,6 +59,22 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
         name: 'description',
         content:
           'Receipt intelligence for structured item extraction and tag-based spending analysis.',
+      },
+      {
+        name: 'theme-color',
+        content: '#2f7d57',
+      },
+      {
+        name: 'mobile-web-app-capable',
+        content: 'yes',
+      },
+      {
+        name: 'apple-mobile-web-app-capable',
+        content: 'yes',
+      },
+      {
+        name: 'apple-mobile-web-app-title',
+        content: 'Ekorn',
       },
     ],
   }),
@@ -59,6 +90,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body suppressHydrationWarning>
         <ConvexProvider>
           <CssBaseline />
+          <ServiceWorkerRegistration />
           {children}
           <TanStackDevtools
             config={{

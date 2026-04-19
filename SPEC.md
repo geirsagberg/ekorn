@@ -32,6 +32,7 @@ When a receipt is captured in a foreign currency, the app should also try to con
 - Single-user allowlist protection so only the configured account can use the deployed app.
 - Cloud-backed persistence for saved receipts in Convex.
 - Durable storage of both the original receipt image and the structured analysis result for successful captures in Convex file storage and Convex tables.
+- PWA installability with Android-friendly add-to-home-screen support, including a manifest, service worker, and in-app install guidance.
 - Optional browser-local caching is allowed, but it is not the source of truth for saved receipts.
 - Local historical FX conversion for foreign-currency receipts using purchase date when available and capture date as a fallback.
 - Local caching of historical FX lookups so recent conversions can be reused without another network request.
@@ -74,6 +75,7 @@ When a receipt is captured in a foreign currency, the app should also try to con
 - Shows one obvious primary action to add a receipt photo.
 - Lets the browser handle camera or existing-photo choice when possible.
 - Shows the selected receipt image before or during processing.
+- Shows an Android-focused install prompt or add-to-home-screen hint before the user installs the app.
 - Shows one clear processing state for the full analysis flow.
 - If processing succeeds, saves the receipt automatically and opens `Receipt detail`.
 - If processing fails, shows a retryable error and does not create a saved receipt.
@@ -117,6 +119,7 @@ When a receipt is captured in a foreign currency, the app should also try to con
 - OCR preview uses OpenAI through the existing provider facade.
 - Categorization runs after OCR preview and reuses persistent cache entries before calling AI.
 - Deployment target: Netlify for the TanStack Start app and Convex for backend/data.
+- PWA support: web manifest, service worker app-shell caching, and Android add-to-home-screen affordances.
 - Use the latest stable versions available at implementation time for core dependencies.
 
 ## Deferred Product Vision
@@ -132,6 +135,7 @@ These remain part of the broader product direction:
 - The app opens on `Capture`.
 - The user can add a receipt photo with one clear action.
 - The browser can offer camera or gallery selection where supported.
+- Android users can install the app to the home screen from a browser install prompt or clear fallback guidance.
 - The app shows one clear processing state while analysis runs.
 - Successful processing automatically saves the receipt locally.
 - Successful processing automatically saves the receipt to the authenticated user's cloud history.
