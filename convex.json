@@ -1,0 +1,29 @@
+{
+  "authKit": {
+    "dev": {
+      "configure": {
+        "redirectUris": ["http://localhost:3000/callback"],
+        "appHomepageUrl": "http://localhost:3000",
+        "corsOrigins": ["http://localhost:3000"]
+      },
+      "localEnvVars": {
+        "WORKOS_CLIENT_ID": "${authEnv.WORKOS_CLIENT_ID}",
+        "WORKOS_REDIRECT_URI": "http://localhost:3000/callback"
+      }
+    },
+    "preview": {
+      "configure": {
+        "redirectUris": ["${buildEnv.DEPLOY_PRIME_URL}/callback"],
+        "appHomepageUrl": "${buildEnv.DEPLOY_PRIME_URL}",
+        "corsOrigins": ["${buildEnv.DEPLOY_PRIME_URL}"]
+      }
+    },
+    "prod": {
+      "configure": {
+        "redirectUris": ["${buildEnv.URL}/callback"],
+        "appHomepageUrl": "${buildEnv.URL}",
+        "corsOrigins": ["${buildEnv.URL}"]
+      }
+    }
+  }
+}

@@ -13,9 +13,11 @@ export interface SavedReceipt {
   currency: string | null
   status: SavedReceiptStatus
   fxConversion: SavedReceiptFxConversion | null
-  imageBlob: Blob
+  imageBlob: Blob | null
   imageName: string
   imageType: string
+  imageUrl: string | null
+  imageStorageId: string | null
   analysis: ReceiptOcrPreviewResult
 }
 
@@ -50,6 +52,8 @@ export function buildSavedReceipt({
     imageBlob: imageFile,
     imageName: imageFile.name,
     imageType: imageFile.type,
+    imageUrl: null,
+    imageStorageId: null,
     analysis,
   }
 

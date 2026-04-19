@@ -20,8 +20,12 @@ import Stack from '@mui/material/Stack'
 import SvgIcon from '@mui/material/SvgIcon'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
+import { useMutation, useQuery } from 'convex/react'
 import { useEffect, useState } from 'react'
+import { api } from '../../../convex/_generated/api'
+import type { Id } from '../../../convex/_generated/dataModel'
 import { logReceiptDebug } from './debug'
+import { createReceiptFxConversionService } from './fx-rate'
 import { ReceiptCaptureScreen } from './receipt-capture-screen'
 import {
   indexedDbReceiptRepository,
@@ -50,14 +54,9 @@ export function ReceiptApp({
   analyzeReceipt,
   receiptRepository = indexedDbReceiptRepository,
 }: ReceiptAppProps) {
-  const [view, setView] = useState<ReceiptAppView>({ kind: 'capture' })
   const [receipts, setReceipts] = useState<SavedReceipt[]>([])
   const [isLoadingReceipts, setIsLoadingReceipts] = useState(true)
   const [storageError, setStorageError] = useState<string | null>(null)
-  const selectedReceipt =
-    view.kind === 'detail'
-      ? (receipts.find((receipt) => receipt.id === view.receiptId) ?? null)
-      : null
 
   useEffect(() => {
     let isActive = true
@@ -103,83 +102,230 @@ export function ReceiptApp({
     }
   }, [receiptRepository])
 
+  return (
+    <ReceiptAppShell
+      analyzeReceipt={analyzeReceipt}
+      isLoadingReceipts={isLoadingReceipts}
+      onDeleteReceipt={async (receiptId) => {
+        try {
+          await receiptRepository.deleteReceipt(receiptId)
+
+          setReceipts((currentReceipts) =>
+            currentReceipts.filter((receipt) => receipt.id !== receiptId),
+          )
+          setStorageError(null)
+        } catch (error) {
+          setStorageError(toStorageErrorMessage(error))
+          throw error
+        }
+      }}
+      onReceiptCaptured={async ({ analysis, imageFile }) => {
+        try {
+          const savedReceipt = await receiptRepository.saveReceipt({
+            analysis,
+            imageFile,
+          })
+
+          setReceipts((currentReceipts) =>
+            sortSavedReceipts([savedReceipt, ...currentReceipts]),
+          )
+          setStorageError(null)
+
+          return savedReceipt
+        } catch (error) {
+          throw new Error(toStorageErrorMessage(error))
+        }
+      }}
+      onReceiptReprocessed={async (receipt) => {
+        try {
+          const imageFile = await loadReceiptImageFile(receipt)
+          const formData = new FormData()
+          formData.set('receiptImage', imageFile)
+
+          logReceiptDebug('storage', {
+            event: 'receipt_reprocess_requested',
+            receiptId: receipt.id,
+          })
+
+          const analysis = await analyzeReceipt({ data: formData })
+          const updatedReceipt = await receiptRepository.updateReceipt({
+            analysis,
+            receiptId: receipt.id,
+          })
+
+          setReceipts((currentReceipts) =>
+            currentReceipts.map((currentReceipt) =>
+              currentReceipt.id === updatedReceipt.id
+                ? updatedReceipt
+                : currentReceipt,
+            ),
+          )
+          setStorageError(null)
+
+          return updatedReceipt
+        } catch (error) {
+          setStorageError(toStorageErrorMessage(error))
+          throw error
+        }
+      }}
+      receipts={receipts}
+      storageError={storageError}
+    />
+  )
+}
+
+export function CloudReceiptApp({
+  analyzeReceipt,
+}: {
+  analyzeReceipt: (options: {
+    data: FormData
+  }) => Promise<ReceiptOcrPreviewResult>
+}) {
+  const cloudReceipts = useQuery(api.receipts.list, {})
+  const createReceipt = useMutation(api.receipts.create)
+  const deleteReceipt = useMutation(api.receipts.remove)
+  const generateUploadUrl = useMutation(api.receipts.generateUploadUrl)
+  const updateReceipt = useMutation(api.receipts.update)
+  const [fxConversionService] = useState(() =>
+    createReceiptFxConversionService(),
+  )
+  const [receipts, setReceipts] = useState<SavedReceipt[]>([])
+  const [storageError, setStorageError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (cloudReceipts === undefined) {
+      return
+    }
+
+    setReceipts(cloudReceipts)
+    setStorageError(null)
+  }, [cloudReceipts])
+
+  return (
+    <ReceiptAppShell
+      analyzeReceipt={analyzeReceipt}
+      isLoadingReceipts={cloudReceipts === undefined && receipts.length === 0}
+      onDeleteReceipt={async (receiptId) => {
+        try {
+          await deleteReceipt({
+            receiptId: receiptId as Id<'receipts'>,
+          })
+
+          setReceipts((currentReceipts) =>
+            currentReceipts.filter((receipt) => receipt.id !== receiptId),
+          )
+          setStorageError(null)
+        } catch (error) {
+          setStorageError(toStorageErrorMessage(error))
+          throw error
+        }
+      }}
+      onReceiptCaptured={async ({ analysis, imageFile }) => {
+        try {
+          const createdAt = new Date().toISOString()
+          const storageId = await uploadReceiptImage({
+            file: imageFile,
+            generateUploadUrl,
+          })
+          const fxConversion = await fxConversionService.resolveForReceipt({
+            analysis,
+            createdAt,
+          })
+          const savedReceipt = await createReceipt({
+            analysis,
+            createdAt,
+            fxConversion,
+            imageName: imageFile.name,
+            imageType: imageFile.type || 'application/octet-stream',
+            storageId,
+          })
+
+          setReceipts((currentReceipts) =>
+            sortSavedReceipts([savedReceipt, ...currentReceipts]),
+          )
+          setStorageError(null)
+
+          return savedReceipt
+        } catch (error) {
+          throw new Error(toStorageErrorMessage(error))
+        }
+      }}
+      onReceiptReprocessed={async (receipt) => {
+        try {
+          const imageFile = await loadReceiptImageFile(receipt)
+          const formData = new FormData()
+          formData.set('receiptImage', imageFile)
+
+          logReceiptDebug('storage', {
+            event: 'receipt_reprocess_requested',
+            receiptId: receipt.id,
+          })
+
+          const analysis = await analyzeReceipt({ data: formData })
+          const fxConversion = await fxConversionService.resolveForReceipt({
+            analysis,
+            createdAt: receipt.createdAt,
+          })
+          const updatedReceipt = await updateReceipt({
+            analysis,
+            fxConversion,
+            receiptId: receipt.id as Id<'receipts'>,
+          })
+
+          setReceipts((currentReceipts) =>
+            currentReceipts.map((currentReceipt) =>
+              currentReceipt.id === updatedReceipt.id
+                ? updatedReceipt
+                : currentReceipt,
+            ),
+          )
+          setStorageError(null)
+
+          return updatedReceipt
+        } catch (error) {
+          setStorageError(toStorageErrorMessage(error))
+          throw error
+        }
+      }}
+      receipts={receipts}
+      storageError={storageError}
+    />
+  )
+}
+
+function ReceiptAppShell({
+  analyzeReceipt,
+  isLoadingReceipts,
+  onDeleteReceipt,
+  onReceiptCaptured,
+  onReceiptReprocessed,
+  receipts,
+  storageError,
+}: {
+  analyzeReceipt: (options: {
+    data: FormData
+  }) => Promise<ReceiptOcrPreviewResult>
+  isLoadingReceipts: boolean
+  onDeleteReceipt: (receiptId: string) => Promise<void>
+  onReceiptCaptured: (capture: {
+    analysis: ReceiptOcrPreviewResult
+    imageFile: File
+  }) => Promise<SavedReceipt>
+  onReceiptReprocessed: (receipt: SavedReceipt) => Promise<SavedReceipt>
+  receipts: SavedReceipt[]
+  storageError: string | null
+}) {
+  const [view, setView] = useState<ReceiptAppView>({ kind: 'capture' })
+  const selectedReceipt =
+    view.kind === 'detail'
+      ? (receipts.find((receipt) => receipt.id === view.receiptId) ?? null)
+      : null
+
   useEffect(() => {
     if (view.kind === 'detail' && !selectedReceipt && !isLoadingReceipts) {
       setView({ kind: 'history' })
     }
   }, [isLoadingReceipts, selectedReceipt, view])
-
-  const handleReceiptCaptured = async ({
-    analysis,
-    imageFile,
-  }: {
-    analysis: ReceiptOcrPreviewResult
-    imageFile: File
-  }) => {
-    try {
-      const savedReceipt = await receiptRepository.saveReceipt({
-        analysis,
-        imageFile,
-      })
-
-      setReceipts((currentReceipts) =>
-        [savedReceipt, ...currentReceipts].sort((left, right) =>
-          right.createdAt.localeCompare(left.createdAt),
-        ),
-      )
-      setStorageError(null)
-      setView({ kind: 'detail', receiptId: savedReceipt.id })
-    } catch (error) {
-      throw new Error(toStorageErrorMessage(error))
-    }
-  }
-
-  const handleReceiptDeleted = async (receiptId: string) => {
-    try {
-      await receiptRepository.deleteReceipt(receiptId)
-
-      setReceipts((currentReceipts) =>
-        currentReceipts.filter((receipt) => receipt.id !== receiptId),
-      )
-      setStorageError(null)
-      setView({ kind: 'history' })
-    } catch (error) {
-      setStorageError(toStorageErrorMessage(error))
-    }
-  }
-
-  const handleReceiptReprocessed = async (receipt: SavedReceipt) => {
-    try {
-      const imageFile = new File([receipt.imageBlob], receipt.imageName, {
-        type: receipt.imageType,
-      })
-      const formData = new FormData()
-      formData.set('receiptImage', imageFile)
-
-      logReceiptDebug('storage', {
-        event: 'receipt_reprocess_requested',
-        receiptId: receipt.id,
-      })
-
-      const analysis = await analyzeReceipt({ data: formData })
-      const updatedReceipt = await receiptRepository.updateReceipt({
-        analysis,
-        receiptId: receipt.id,
-      })
-
-      setReceipts((currentReceipts) =>
-        currentReceipts.map((currentReceipt) =>
-          currentReceipt.id === updatedReceipt.id
-            ? updatedReceipt
-            : currentReceipt,
-        ),
-      )
-      setStorageError(null)
-      setView({ kind: 'detail', receiptId: updatedReceipt.id })
-    } catch (error) {
-      setStorageError(toStorageErrorMessage(error))
-    }
-  }
 
   const navigationValue = view.kind === 'capture' ? 'capture' : 'history'
 
@@ -224,7 +370,10 @@ export function ReceiptApp({
             {view.kind === 'capture' ? (
               <ReceiptCaptureScreen
                 analyzeReceipt={analyzeReceipt}
-                onCaptureSuccess={handleReceiptCaptured}
+                onCaptureSuccess={async (capture) => {
+                  const savedReceipt = await onReceiptCaptured(capture)
+                  setView({ kind: 'detail', receiptId: savedReceipt.id })
+                }}
               />
             ) : null}
 
@@ -242,8 +391,14 @@ export function ReceiptApp({
               <ReceiptDetailScreen
                 key={selectedReceipt?.id ?? 'missing-receipt'}
                 isLoading={isLoadingReceipts}
-                onDeleteReceipt={handleReceiptDeleted}
-                onReprocessReceipt={handleReceiptReprocessed}
+                onDeleteReceipt={async (receiptId) => {
+                  await onDeleteReceipt(receiptId)
+                  setView({ kind: 'history' })
+                }}
+                onReprocessReceipt={async (receipt) => {
+                  const updatedReceipt = await onReceiptReprocessed(receipt)
+                  setView({ kind: 'detail', receiptId: updatedReceipt.id })
+                }}
                 receipt={selectedReceipt}
                 onBack={() => {
                   setView({ kind: 'history' })
@@ -308,7 +463,7 @@ function ReceiptHistoryScreen({
           History
         </Typography>
         <Typography sx={{ color: '#5a4a36' }}>
-          Saved receipts stay on this device.
+          Saved receipts sync securely to your account.
         </Typography>
       </Stack>
 
@@ -458,12 +613,22 @@ function ReceiptDetailScreen({
   useEffect(() => {
     if (!isImageVisible || !receipt) {
       setImageUrl((currentUrl) => {
-        if (currentUrl) {
+        if (currentUrl?.startsWith('blob:')) {
           URL.revokeObjectURL(currentUrl)
         }
 
         return null
       })
+      return
+    }
+
+    if (receipt.imageUrl) {
+      setImageUrl(receipt.imageUrl)
+      return
+    }
+
+    if (!receipt.imageBlob) {
+      setImageUrl(null)
       return
     }
 
@@ -558,7 +723,7 @@ function ReceiptDetailScreen({
       ) : null}
 
       <Button
-        disabled={isReprocessing}
+        disabled={isReprocessing || !hasReceiptImageSource(receipt)}
         variant="outlined"
         onClick={async () => {
           setIsReprocessing(true)
@@ -579,6 +744,7 @@ function ReceiptDetailScreen({
       </Button>
 
       <Button
+        disabled={!hasReceiptImageSource(receipt)}
         variant="outlined"
         onClick={() => {
           setIsImageVisible((currentValue) => !currentValue)
@@ -639,8 +805,8 @@ function ReceiptDetailScreen({
         <DialogTitle>Delete receipt?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This removes the saved receipt from local history, but keeps learned
-            categorization data for future captures.
+            This removes the saved receipt from your account history, but keeps
+            learned categorization data for future captures.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
@@ -993,7 +1159,72 @@ function toStorageErrorMessage(error: unknown) {
     return error.message
   }
 
-  return 'Could not save this receipt locally.'
+  return 'Could not update your receipt history.'
+}
+
+function sortSavedReceipts(receipts: SavedReceipt[]) {
+  return [...receipts].sort((left, right) =>
+    right.createdAt.localeCompare(left.createdAt),
+  )
+}
+
+function hasReceiptImageSource(receipt: SavedReceipt) {
+  return receipt.imageBlob !== null || receipt.imageUrl !== null
+}
+
+async function loadReceiptImageFile(receipt: SavedReceipt) {
+  if (receipt.imageBlob) {
+    return new File([receipt.imageBlob], receipt.imageName, {
+      type: receipt.imageType,
+    })
+  }
+
+  if (!receipt.imageUrl) {
+    throw new Error('This receipt image is no longer available.')
+  }
+
+  const response = await fetch(receipt.imageUrl)
+
+  if (!response.ok) {
+    throw new Error('Could not load this receipt image.')
+  }
+
+  const imageBlob = await response.blob()
+
+  return new File([imageBlob], receipt.imageName, {
+    type: receipt.imageType || imageBlob.type || 'application/octet-stream',
+  })
+}
+
+async function uploadReceiptImage({
+  file,
+  generateUploadUrl,
+}: {
+  file: File
+  generateUploadUrl: (args: Record<string, never>) => Promise<string>
+}) {
+  const uploadUrl = await generateUploadUrl({})
+  const response = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+    },
+    body: file,
+  })
+
+  if (!response.ok) {
+    throw new Error('Could not upload this receipt image.')
+  }
+
+  const result = (await response.json()) as {
+    storageId?: Id<'_storage'>
+  }
+
+  if (!result.storageId) {
+    throw new Error('Could not store this receipt image.')
+  }
+
+  return result.storageId
 }
 
 function hasUsableFxConversion(receipt: SavedReceipt) {

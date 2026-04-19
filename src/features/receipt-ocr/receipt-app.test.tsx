@@ -323,7 +323,7 @@ describe('ReceiptApp', () => {
     expect(await screen.findByText('Delete receipt?')).toBeTruthy()
     expect(
       screen.getByText(
-        'This removes the saved receipt from local history, but keeps learned categorization data for future captures.',
+        'This removes the saved receipt from your account history, but keeps learned categorization data for future captures.',
       ),
     ).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Delete receipt' }))
@@ -454,6 +454,10 @@ describe('ReceiptApp', () => {
     expect(
       screen.getByRole('button', { name: 'Reprocessing receipt...' }),
     ).toBeTruthy()
+
+    await waitFor(() => {
+      expect(analyzeReceipt).toHaveBeenCalledTimes(1)
+    })
 
     resolveAnalyzeReceipt(
       createOcrResult({

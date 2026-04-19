@@ -28,3 +28,6 @@ tests/fixtures/*.png
 CLAUDE.md
 skills-lock.json
 convex/_generated/ai/
+
+# Local Netlify folder
+.netlify

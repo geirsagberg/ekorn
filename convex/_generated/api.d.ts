@@ -10,6 +10,9 @@
 
 import type * as categorization from "../categorization.js";
 import type * as health from "../health.js";
+import type * as receiptTypes from "../receiptTypes.js";
+import type * as receipts from "../receipts.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +23,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   categorization: typeof categorization;
   health: typeof health;
+  receiptTypes: typeof receiptTypes;
+  receipts: typeof receipts;
+  users: typeof users;
 }>;
 
 /**
