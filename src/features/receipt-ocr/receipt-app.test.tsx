@@ -7,15 +7,15 @@ import {
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SavedReceiptFxConversion } from './fx-rate/shared'
-import { ReceiptApp } from './receipt-app'
-import type { ReceiptRepository } from './receipt-repository'
+import { ReceiptFlowApp } from './receipt-flow-app'
+import type { ReceiptFlowDataSource } from './receipt-flow-data-source'
 import { buildSavedReceipt, type SavedReceipt } from './saved-receipts'
 import type { ReceiptOcrPreviewResult } from './shared'
 
 const createObjectUrlMock = vi.fn(() => 'blob:receipt-preview')
 const revokeObjectUrlMock = vi.fn()
 
-describe('ReceiptApp', () => {
+describe('ReceiptFlowApp', () => {
   beforeEach(() => {
     createObjectUrlMock.mockClear()
     revokeObjectUrlMock.mockClear()
@@ -35,11 +35,11 @@ describe('ReceiptApp', () => {
     const analyzeReceipt = vi
       .fn()
       .mockResolvedValue(createOcrResult({ merchantName: 'Coop Mega' }))
-    const repository = createMemoryReceiptRepository()
+    const dataSource = createMemoryReceiptFlowDataSource()
     const { container } = render(
-      <ReceiptApp
+      <ReceiptFlowApp
         analyzeReceipt={analyzeReceipt}
-        receiptRepository={repository}
+        dataSource={dataSource}
       />,
     )
 
@@ -53,7 +53,7 @@ describe('ReceiptApp', () => {
     expect(screen.getByText('Coop Mega')).toBeTruthy()
     expect(screen.getByText('Structured receipt')).toBeTruthy()
     expect(screen.getByText('Ready')).toBeTruthy()
-    expect(repository.getSavedReceipts()).toHaveLength(1)
+    expect(dataSource.getSavedReceipts()).toHaveLength(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'History' }))
 
@@ -65,11 +65,11 @@ describe('ReceiptApp', () => {
     const analyzeReceipt = vi
       .fn()
       .mockRejectedValue(new Error('Receipt OCR failed. Try another photo.'))
-    const repository = createMemoryReceiptRepository()
+    const dataSource = createMemoryReceiptFlowDataSource()
     const { container } = render(
-      <ReceiptApp
+      <ReceiptFlowApp
         analyzeReceipt={analyzeReceipt}
-        receiptRepository={repository}
+        dataSource={dataSource}
       />,
     )
 
@@ -82,7 +82,7 @@ describe('ReceiptApp', () => {
     expect(
       await screen.findByText('Receipt OCR failed. Try another photo.'),
     ).toBeTruthy()
-    expect(repository.getSavedReceipts()).toHaveLength(0)
+    expect(dataSource.getSavedReceipts()).toHaveLength(0)
 
     fireEvent.click(screen.getByRole('button', { name: 'History' }))
 
@@ -90,7 +90,7 @@ describe('ReceiptApp', () => {
   })
 
   it('shows structured detail first and only reveals the image through an explicit action', async () => {
-    const repository = createMemoryReceiptRepository([
+    const dataSource = createMemoryReceiptFlowDataSource([
       buildSavedReceipt({
         analysis: createOcrResult({
           sanityCheck: {
@@ -107,9 +107,7 @@ describe('ReceiptApp', () => {
       }),
     ])
 
-    render(
-      <ReceiptApp analyzeReceipt={vi.fn()} receiptRepository={repository} />,
-    )
+    render(<ReceiptFlowApp analyzeReceipt={vi.fn()} dataSource={dataSource} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'History' }))
     fireEvent.click(
@@ -133,7 +131,7 @@ describe('ReceiptApp', () => {
   })
 
   it('shows converted home-currency totals in history and detail', async () => {
-    const repository = createMemoryReceiptRepository([
+    const dataSource = createMemoryReceiptFlowDataSource([
       buildSavedReceipt({
         analysis: createOcrResult({
           currency: 'EUR',
@@ -154,9 +152,7 @@ describe('ReceiptApp', () => {
       }),
     ])
 
-    render(
-      <ReceiptApp analyzeReceipt={vi.fn()} receiptRepository={repository} />,
-    )
+    render(<ReceiptFlowApp analyzeReceipt={vi.fn()} dataSource={dataSource} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'History' }))
 
@@ -179,7 +175,7 @@ describe('ReceiptApp', () => {
   })
 
   it('shows capture-date fallback FX notes when purchase date is missing', async () => {
-    const repository = createMemoryReceiptRepository([
+    const dataSource = createMemoryReceiptFlowDataSource([
       buildSavedReceipt({
         analysis: createOcrResult({
           currency: 'EUR',
@@ -202,9 +198,7 @@ describe('ReceiptApp', () => {
       }),
     ])
 
-    render(
-      <ReceiptApp analyzeReceipt={vi.fn()} receiptRepository={repository} />,
-    )
+    render(<ReceiptFlowApp analyzeReceipt={vi.fn()} dataSource={dataSource} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'History' }))
     fireEvent.click(
@@ -221,7 +215,7 @@ describe('ReceiptApp', () => {
   })
 
   it('keeps only the original currency total when conversion is unavailable', async () => {
-    const repository = createMemoryReceiptRepository([
+    const dataSource = createMemoryReceiptFlowDataSource([
       buildSavedReceipt({
         analysis: createOcrResult({
           currency: 'EUR',
@@ -242,9 +236,7 @@ describe('ReceiptApp', () => {
       }),
     ])
 
-    render(
-      <ReceiptApp analyzeReceipt={vi.fn()} receiptRepository={repository} />,
-    )
+    render(<ReceiptFlowApp analyzeReceipt={vi.fn()} dataSource={dataSource} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'History' }))
     fireEvent.click(
@@ -262,7 +254,7 @@ describe('ReceiptApp', () => {
   })
 
   it('shows confidence details behind an info icon tooltip on the category row', async () => {
-    const repository = createMemoryReceiptRepository([
+    const dataSource = createMemoryReceiptFlowDataSource([
       buildSavedReceipt({
         analysis: createOcrResult(),
         imageFile: new File(['image'], 'saved-receipt.jpg', {
@@ -271,9 +263,7 @@ describe('ReceiptApp', () => {
       }),
     ])
 
-    render(
-      <ReceiptApp analyzeReceipt={vi.fn()} receiptRepository={repository} />,
-    )
+    render(<ReceiptFlowApp analyzeReceipt={vi.fn()} dataSource={dataSource} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'History' }))
     fireEvent.click(
@@ -297,7 +287,7 @@ describe('ReceiptApp', () => {
   })
 
   it('deletes a saved receipt without affecting the rest of the flow', async () => {
-    const repository = createMemoryReceiptRepository([
+    const dataSource = createMemoryReceiptFlowDataSource([
       buildSavedReceipt({
         analysis: createOcrResult(),
         imageFile: new File(['image'], 'saved-receipt.jpg', {
@@ -306,9 +296,7 @@ describe('ReceiptApp', () => {
       }),
     ])
 
-    render(
-      <ReceiptApp analyzeReceipt={vi.fn()} receiptRepository={repository} />,
-    )
+    render(<ReceiptFlowApp analyzeReceipt={vi.fn()} dataSource={dataSource} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'History' }))
     fireEvent.click(
@@ -330,11 +318,11 @@ describe('ReceiptApp', () => {
 
     expect(await screen.findByRole('heading', { name: 'History' })).toBeTruthy()
     expect(screen.getByText('No saved receipts yet')).toBeTruthy()
-    expect(repository.getSavedReceipts()).toHaveLength(0)
+    expect(dataSource.getSavedReceipts()).toHaveLength(0)
   })
 
   it('lets the user cancel receipt deletion', async () => {
-    const repository = createMemoryReceiptRepository([
+    const dataSource = createMemoryReceiptFlowDataSource([
       buildSavedReceipt({
         analysis: createOcrResult(),
         imageFile: new File(['image'], 'saved-receipt.jpg', {
@@ -343,9 +331,7 @@ describe('ReceiptApp', () => {
       }),
     ])
 
-    render(
-      <ReceiptApp analyzeReceipt={vi.fn()} receiptRepository={repository} />,
-    )
+    render(<ReceiptFlowApp analyzeReceipt={vi.fn()} dataSource={dataSource} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'History' }))
     fireEvent.click(
@@ -362,7 +348,7 @@ describe('ReceiptApp', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
     expect(screen.getByText('Receipt detail')).toBeTruthy()
-    expect(repository.getSavedReceipts()).toHaveLength(1)
+    expect(dataSource.getSavedReceipts()).toHaveLength(1)
   })
 
   it('reprocesses a saved receipt image and updates the same receipt entry', async () => {
@@ -375,7 +361,7 @@ describe('ReceiptApp', () => {
         type: 'image/jpeg',
       }),
     })
-    const repository = createMemoryReceiptRepository([initialReceipt])
+    const dataSource = createMemoryReceiptFlowDataSource([initialReceipt])
     const analyzeReceipt = vi.fn().mockResolvedValue(
       createOcrResult({
         items: [
@@ -394,9 +380,9 @@ describe('ReceiptApp', () => {
     )
 
     render(
-      <ReceiptApp
+      <ReceiptFlowApp
         analyzeReceipt={analyzeReceipt}
-        receiptRepository={repository}
+        dataSource={dataSource}
       />,
     )
 
@@ -412,10 +398,10 @@ describe('ReceiptApp', () => {
       expect(analyzeReceipt).toHaveBeenCalledTimes(1)
     })
     expect(await screen.findByText('New merchant')).toBeTruthy()
-    expect(repository.getSavedReceipts()).toHaveLength(1)
-    expect(repository.getSavedReceipts()[0]?.id).toBe(initialReceipt.id)
-    expect(repository.getSavedReceipts()[0]?.merchant).toBe('New merchant')
-    expect(repository.getSavedReceipts()[0]?.total).toBe(9.75)
+    expect(dataSource.getSavedReceipts()).toHaveLength(1)
+    expect(dataSource.getSavedReceipts()[0]?.id).toBe(initialReceipt.id)
+    expect(dataSource.getSavedReceipts()[0]?.merchant).toBe('New merchant')
+    expect(dataSource.getSavedReceipts()[0]?.total).toBe(9.75)
   })
 
   it('resets the reprocess button label after reprocessing completes', async () => {
@@ -427,7 +413,7 @@ describe('ReceiptApp', () => {
         type: 'image/jpeg',
       }),
     })
-    const repository = createMemoryReceiptRepository([initialReceipt])
+    const dataSource = createMemoryReceiptFlowDataSource([initialReceipt])
     let resolveAnalyzeReceipt!: (result: ReceiptOcrPreviewResult) => void
     const analyzeReceipt = vi.fn(
       () =>
@@ -437,9 +423,9 @@ describe('ReceiptApp', () => {
     )
 
     render(
-      <ReceiptApp
+      <ReceiptFlowApp
         analyzeReceipt={analyzeReceipt}
-        receiptRepository={repository}
+        dataSource={dataSource}
       />,
     )
 
@@ -473,13 +459,13 @@ describe('ReceiptApp', () => {
   })
 })
 
-function createMemoryReceiptRepository(
+function createMemoryReceiptFlowDataSource(
   initialReceipts: SavedReceipt[] = [],
-): ReceiptRepository & { getSavedReceipts: () => SavedReceipt[] } {
+): ReceiptFlowDataSource & { getSavedReceipts: () => SavedReceipt[] } {
   let receipts = [...initialReceipts]
 
   return {
-    async backfillFxConversions() {
+    async listReceipts() {
       return receipts
     },
     async deleteReceipt(receiptId) {
@@ -488,43 +474,41 @@ function createMemoryReceiptRepository(
     getSavedReceipts() {
       return receipts
     },
-    async getReceipt(receiptId) {
-      return receipts.find((receipt) => receipt.id === receiptId) ?? null
-    },
-    async listReceipts() {
-      return receipts
-    },
-    async saveReceipt(input) {
+    async captureReceipt(input) {
       const savedReceipt = buildSavedReceipt(input)
       receipts = [savedReceipt, ...receipts]
       return savedReceipt
     },
-    async updateReceipt({ analysis, receiptId }) {
+    async reprocessReceipt({ analyzeReceipt, receipt }) {
       const currentReceipt = receipts.find(
-        (receipt) => receipt.id === receiptId,
+        (currentItem) => currentItem.id === receipt.id,
       )
 
       if (!currentReceipt) {
         throw new Error('Could not find this receipt to update.')
       }
 
+      const nextAnalysis = await analyzeReceipt({
+        data: new FormData(),
+      })
+
       const updatedReceipt = {
         ...currentReceipt,
-        analysis,
-        merchant: analysis.merchantName,
-        total: analysis.total,
-        subtotal: analysis.subtotal,
-        currency: analysis.currency,
+        analysis: nextAnalysis,
+        merchant: nextAnalysis.merchantName,
+        total: nextAnalysis.total,
+        subtotal: nextAnalysis.subtotal,
+        currency: nextAnalysis.currency,
         fxConversion: currentReceipt.fxConversion ?? null,
         status:
-          analysis.sanityCheck.status === 'warning' ||
-          analysis.items.some((item) => item.isLowConfidence)
+          nextAnalysis.sanityCheck.status === 'warning' ||
+          nextAnalysis.items.some((item) => item.isLowConfidence)
             ? 'needs-review'
             : 'ready',
       } satisfies SavedReceipt
 
       receipts = receipts.map((receipt) =>
-        receipt.id === receiptId ? updatedReceipt : receipt,
+        receipt.id === currentReceipt.id ? updatedReceipt : receipt,
       )
 
       return updatedReceipt

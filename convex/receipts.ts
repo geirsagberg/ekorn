@@ -1,5 +1,6 @@
 import { v } from 'convex/values'
 import { deriveSavedReceiptStatus } from '../src/features/receipt-ocr/saved-receipts'
+import { authPolicyMessages } from '../src/integrations/auth/server-access-policy'
 import type { Id } from './_generated/dataModel'
 import {
   type MutationCtx,
@@ -35,7 +36,7 @@ export const generateUploadUrl = mutation({
     const user = await upsertCurrentUser(ctx)
 
     if (!user.isAllowed) {
-      throw new Error('This account is not allowed to use Ekorn.')
+      throw new Error(authPolicyMessages.notAuthorized)
     }
 
     return await ctx.storage.generateUploadUrl()
@@ -55,7 +56,7 @@ export const create = mutation({
     const user = await upsertCurrentUser(ctx)
 
     if (!user.isAllowed) {
-      throw new Error('This account is not allowed to use Ekorn.')
+      throw new Error(authPolicyMessages.notAuthorized)
     }
 
     const receiptId = await ctx.db.insert('receipts', {
@@ -94,7 +95,7 @@ export const update = mutation({
     const user = await upsertCurrentUser(ctx)
 
     if (!user.isAllowed) {
-      throw new Error('This account is not allowed to use Ekorn.')
+      throw new Error(authPolicyMessages.notAuthorized)
     }
 
     const receipt = await requireOwnedReceipt(ctx, args.receiptId, user._id)
@@ -128,7 +129,7 @@ export const remove = mutation({
     const user = await upsertCurrentUser(ctx)
 
     if (!user.isAllowed) {
-      throw new Error('This account is not allowed to use Ekorn.')
+      throw new Error(authPolicyMessages.notAuthorized)
     }
 
     const receipt = await requireOwnedReceipt(ctx, args.receiptId, user._id)

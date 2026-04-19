@@ -105,14 +105,16 @@ https://<your-site>.netlify.app/callback
 
 ### Playwright Verification
 
-Put your real receipt image here:
-
 - `tests/fixtures/receipt.jpg`
+
+The repo now includes a tracked sample receipt fixture from Wikimedia Commons at that path.
+To run the authenticated cloud-flow check as well, enable it explicitly:
 
 Then run:
 
 ```sh
 bunx playwright install chromium
+E2E_AUTHENTICATED_RECEIPT=1 \
 bun run test:e2e
 ```
 

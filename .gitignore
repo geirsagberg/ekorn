@@ -19,6 +19,7 @@ test-results
 tests/fixtures/*.jpg
 tests/fixtures/*.jpeg
 tests/fixtures/*.png
+!tests/fixtures/receipt.jpg
 
 # Local AI tooling and generated guidance
 .agents/

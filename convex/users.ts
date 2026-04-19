@@ -1,8 +1,8 @@
 import { v } from 'convex/values'
 import {
-  isAllowedUserEmail,
-  parseAllowedUserEmails,
-} from '../src/integrations/auth/access-control'
+  authPolicyMessages,
+  getAccessPolicy,
+} from '../src/integrations/auth/server-access-policy'
 import { internal } from './_generated/api'
 import {
   type ActionCtx,
@@ -13,8 +13,8 @@ import {
   query,
 } from './_generated/server'
 
-const NOT_AUTHENTICATED_MESSAGE = 'Not authenticated.'
-const NOT_AUTHORIZED_MESSAGE = 'This account is not allowed to use Ekorn.'
+const NOT_AUTHENTICATED_MESSAGE = authPolicyMessages.notAuthenticated
+const NOT_AUTHORIZED_MESSAGE = authPolicyMessages.notAuthorized
 
 export const current = query({
   args: {},
@@ -26,16 +26,16 @@ export const current = query({
     }
 
     const user = await getStoredCurrentUser(ctx)
-    const allowedEmails = getAllowedUserEmails()
     const email = getIdentityEmail(identity) ?? user?.email ?? null
     const name = getIdentityName(identity) ?? user?.name ?? null
+    const accessPolicy = getAccessPolicy(email)
 
     return {
       email,
       name,
-      isAllowed: isAllowedUserEmail(email, allowedEmails),
+      isAllowed: accessPolicy.isAllowed,
       isStored: user !== null,
-      allowlistConfigured: allowedEmails.length > 0,
+      allowlistConfigured: accessPolicy.allowlistConfigured,
     }
   },
 })
@@ -155,7 +155,7 @@ export async function getCurrentUserOrThrow(ctx: QueryCtx | MutationCtx) {
     throw new Error('Your account is still syncing. Refresh and try again.')
   }
 
-  if (!isAllowedUserEmail(email, getAllowedUserEmails())) {
+  if (!getAccessPolicy(email).isAllowed) {
     throw new Error(NOT_AUTHORIZED_MESSAGE)
   }
 
@@ -202,13 +202,9 @@ function buildUserFields(identity: {
   return {
     email,
     name,
-    isAllowed: isAllowedUserEmail(email, getAllowedUserEmails()),
+    isAllowed: getAccessPolicy(email).isAllowed,
     lastSeenAt: new Date().toISOString(),
   }
-}
-
-function getAllowedUserEmails() {
-  return parseAllowedUserEmails(process.env.ALLOWED_USER_EMAILS)
 }
 
 async function fetchWorkosUserProfile(userId: string) {

@@ -6,14 +6,26 @@ const receiptFixturePath = path.resolve(
   process.cwd(),
   'tests/fixtures/receipt.jpg',
 )
+const shouldRunAuthenticatedFixtureTest =
+  process.env.E2E_AUTHENTICATED_RECEIPT === '1'
 
 test.describe('receipt OCR', () => {
-  test.skip(
-    !existsSync(receiptFixturePath),
-    'Place a local receipt image at tests/fixtures/receipt.jpg. This fixture stays untracked on purpose.',
-  )
+  test('boots into a top-level app state', async ({ page }) => {
+    await page.goto('/')
 
-  test('extracts line items from a real receipt image', async ({ page }) => {
+    await expect(page.locator('body')).toContainText(
+      /Sign in to Ekorn|Access is restricted|Convex is not configured|Capture/,
+    )
+  })
+
+  test('captures a real receipt image through the authenticated cloud flow', async ({
+    page,
+  }) => {
+    test.skip(
+      !existsSync(receiptFixturePath) || !shouldRunAuthenticatedFixtureTest,
+      'Set E2E_AUTHENTICATED_RECEIPT=1 to exercise the authenticated cloud flow with the tracked fixture at tests/fixtures/receipt.jpg.',
+    )
+
     const uploadLogs: string[] = []
 
     page.on('console', (message) => {
@@ -37,14 +49,15 @@ test.describe('receipt OCR', () => {
     await fileChooser.setFiles(receiptFixturePath)
 
     await expect(page.getByText('receipt.jpg')).toBeVisible()
-    await expect(page.getByText('Extracted lines')).toBeVisible({
+    await expect(page.getByText('Receipt detail')).toBeVisible({
       timeout: 60_000,
     })
-    await expect(page.getByTestId('ocr-line-items')).toBeVisible()
+    await expect(page.getByText('Structured receipt')).toBeVisible()
+    await expect(page.getByTestId('receipt-line-items')).toBeVisible()
     await expect(page.getByTestId('ocr-error')).toHaveCount(0)
-    await expect(page.getByTestId('ocr-sanity-warning')).toHaveCount(0)
+    await expect(page.getByTestId('receipt-sanity-warning')).toHaveCount(0)
 
-    const lineItems = page.getByTestId('ocr-line-item')
+    const lineItems = page.getByTestId('receipt-line-item')
     const lineItemTexts = await lineItems.allTextContents()
 
     expect(lineItemTexts.length).toBeGreaterThan(0)
@@ -59,7 +72,7 @@ test.describe('receipt OCR', () => {
       return sum + amount
     }, 0)
 
-    const summary = page.getByTestId('ocr-summary')
+    const summary = page.getByTestId('receipt-summary')
     const summaryText = await summary.textContent()
 
     expect(summaryText).toBeTruthy()

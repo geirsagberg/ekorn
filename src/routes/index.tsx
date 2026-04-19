@@ -17,7 +17,8 @@ import {
   useQuery,
 } from 'convex/react'
 import { analyzeReceiptPreview } from '#/features/receipt-ocr/analyze-receipt'
-import { CloudReceiptApp } from '#/features/receipt-ocr/receipt-app'
+import { ReceiptFlowApp } from '#/features/receipt-ocr/receipt-flow-app'
+import { useConvexReceiptFlowDataSource } from '#/features/receipt-ocr/receipt-flow-data-source'
 import { useStoreCurrentUserEffect } from '#/integrations/auth/use-store-current-user-effect'
 import { api } from '../../convex/_generated/api'
 
@@ -114,7 +115,25 @@ function AuthenticatedApp({
     )
   }
 
-  return <CloudReceiptApp analyzeReceipt={analyzeReceipt} />
+  return <AllowedReceiptApp analyzeReceipt={analyzeReceipt} />
+}
+
+function AllowedReceiptApp({
+  analyzeReceipt,
+}: {
+  analyzeReceipt: (options: {
+    data: FormData
+  }) => Promise<import('#/features/receipt-ocr/shared').ReceiptOcrPreviewResult>
+}) {
+  const receiptFlow = useConvexReceiptFlowDataSource()
+
+  return (
+    <ReceiptFlowApp
+      analyzeReceipt={analyzeReceipt}
+      dataSource={receiptFlow.dataSource}
+      syncState={receiptFlow.syncState}
+    />
+  )
 }
 
 function SignInScreen({ signInUrl }: { signInUrl: string }) {

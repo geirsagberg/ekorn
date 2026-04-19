@@ -52,6 +52,10 @@ export interface ReceiptOcrPreviewResult {
   rawWarnings: string[]
 }
 
+export type AnalyzeReceiptFn = (options: {
+  data: FormData
+}) => Promise<ReceiptOcrPreviewResult>
+
 export interface ReceiptOcrProvider {
   providerName: ReceiptOcrProviderName
   analyzeReceipt(file: File): Promise<ReceiptOcrPreviewResult>
