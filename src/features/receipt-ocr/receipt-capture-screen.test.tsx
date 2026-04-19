@@ -57,6 +57,19 @@ describe('ReceiptCaptureScreen', () => {
     })
   })
 
+  it('does not force camera capture so mobile browsers can offer gallery selection', () => {
+    const analyzeReceipt = vi.fn()
+    const onCaptureSuccess = vi.fn()
+    const { container } = render(
+      <ReceiptCaptureScreen
+        analyzeReceipt={analyzeReceipt}
+        onCaptureSuccess={onCaptureSuccess}
+      />,
+    )
+
+    expect(getFileInput(container).getAttribute('capture')).toBeNull()
+  })
+
   it('shows a validation error for non-image files without calling OCR', async () => {
     const analyzeReceipt = vi.fn()
     const onCaptureSuccess = vi.fn()

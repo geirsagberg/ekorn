@@ -193,7 +193,6 @@ export function ReceiptCaptureScreen({
             hidden
             aria-label="Receipt photo"
             accept="image/*"
-            capture="environment"
             type="file"
             onChange={handlePhotoSelection}
             onInput={handlePhotoSelection}
