@@ -83,12 +83,13 @@ export function useDispatchReceiptFlowAction() {
 
 export function createReceiptFlowInitialState(
   syncState?: ReceiptFlowSyncState,
+  initialView: ReceiptFlowView = { kind: 'capture' },
 ): ReceiptFlowState {
   return normalizeReceiptFlowState({
     isLoadingReceipts: syncState?.isLoading ?? true,
     receipts: syncState?.receipts ?? [],
     storageError: null,
-    view: { kind: 'capture' },
+    view: initialView,
   })
 }
 

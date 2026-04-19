@@ -20,6 +20,7 @@ describe('ReceiptFlowApp', () => {
   beforeEach(() => {
     createObjectUrlMock.mockClear()
     revokeObjectUrlMock.mockClear()
+    window.history.replaceState(null, '', '/')
     vi.stubGlobal('URL', {
       ...URL,
       createObjectURL: createObjectUrlMock,
@@ -29,6 +30,7 @@ describe('ReceiptFlowApp', () => {
 
   afterEach(() => {
     cleanup()
+    window.history.replaceState(null, '', '/')
     vi.unstubAllGlobals()
   })
 
@@ -328,6 +330,38 @@ describe('ReceiptFlowApp', () => {
     await waitFor(() => {
       expect(screen.queryByText('Item detail')).toBeNull()
     })
+  })
+
+  it('pushes receipt detail onto browser history and returns to history on back', async () => {
+    window.history.replaceState(null, '', '/#history')
+    const dataSource = createMemoryReceiptFlowDataSource([
+      buildSavedReceipt({
+        analysis: createOcrResult(),
+        imageFile: new File(['image'], 'saved-receipt.jpg', {
+          type: 'image/jpeg',
+        }),
+      }),
+    ])
+
+    render(<ReceiptFlowApp analyzeReceipt={vi.fn()} dataSource={dataSource} />)
+
+    expect(await screen.findByRole('heading', { name: 'History' })).toBeTruthy()
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Open receipt from Unknown merchant',
+      }),
+    )
+
+    expect(await screen.findByText('Receipt detail')).toBeTruthy()
+    expect(window.location.hash).toMatch(/^#receipt\//)
+
+    window.history.back()
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'History' })).toBeTruthy()
+    })
+    expect(window.location.hash).toBe('#history')
   })
 
   it('deletes a saved receipt without affecting the rest of the flow', async () => {

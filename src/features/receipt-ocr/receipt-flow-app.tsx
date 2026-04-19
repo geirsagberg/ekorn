@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type {
   ReceiptFlowDataSource,
   ReceiptFlowSyncState,
@@ -23,9 +23,11 @@ export function ReceiptFlowApp({
   dataSource,
   syncState,
 }: ReceiptFlowAppProps) {
+  const initialView = getInitialReceiptFlowView()
+
   return (
     <ReceiptFlowStateProvider
-      initialState={createReceiptFlowInitialState(syncState)}
+      initialState={createReceiptFlowInitialState(syncState, initialView)}
     >
       <ReceiptFlowAppContent
         analyzeReceipt={analyzeReceipt}
@@ -44,6 +46,7 @@ function ReceiptFlowAppContent({
   const dispatch = useDispatchReceiptFlowAction()
   const { isLoadingReceipts, receipts, selectedReceipt, storageError, view } =
     useReceiptFlowState()
+  const previousViewRef = useRef<ReceiptFlowView | null>(null)
 
   useEffect(() => {
     if (syncState) {
@@ -92,6 +95,58 @@ function ReceiptFlowAppContent({
       syncState,
     })
   }, [dispatch, syncState])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const handlePopState = () => {
+      dispatch({
+        type: 'view_changed',
+        view: getCurrentReceiptFlowView(),
+      })
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [dispatch])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      previousViewRef.current = view
+      return
+    }
+
+    const nextHash = buildReceiptFlowHash(view)
+
+    if (window.location.hash === nextHash) {
+      previousViewRef.current = view
+      return
+    }
+
+    const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`
+    const shouldPushHistoryEntry =
+      view.kind === 'detail' &&
+      (previousViewRef.current?.kind !== 'detail' ||
+        previousViewRef.current.receiptId !== view.receiptId)
+
+    window.history[shouldPushHistoryEntry ? 'pushState' : 'replaceState'](
+      shouldPushHistoryEntry
+        ? {
+            receiptFlowPreviousView: previousViewRef.current ?? {
+              kind: 'capture',
+            },
+          }
+        : null,
+      '',
+      nextUrl,
+    )
+    previousViewRef.current = view
+  }, [view])
 
   return (
     <ReceiptFlowScreen
@@ -155,6 +210,17 @@ function ReceiptFlowAppContent({
       storageError={storageError}
       view={view}
       onViewChange={(nextView: ReceiptFlowView) => {
+        if (
+          typeof window !== 'undefined' &&
+          view.kind === 'detail' &&
+          nextView.kind === 'history' &&
+          getCurrentReceiptFlowView().kind === 'detail' &&
+          window.history.state?.receiptFlowPreviousView?.kind === 'history'
+        ) {
+          window.history.back()
+          return
+        }
+
         dispatch({
           type: 'view_changed',
           view: nextView,
@@ -170,4 +236,52 @@ function toStorageErrorMessage(error: unknown) {
   }
 
   return 'Could not update your receipt history.'
+}
+
+const HISTORY_HASH = '#history'
+const DETAIL_HASH_PREFIX = '#receipt/'
+
+function getInitialReceiptFlowView(): ReceiptFlowView {
+  if (typeof window === 'undefined') {
+    return { kind: 'capture' }
+  }
+
+  return getCurrentReceiptFlowView()
+}
+
+function getCurrentReceiptFlowView(): ReceiptFlowView {
+  if (typeof window === 'undefined') {
+    return { kind: 'capture' }
+  }
+
+  return parseReceiptFlowHash(window.location.hash)
+}
+
+function parseReceiptFlowHash(hash: string): ReceiptFlowView {
+  if (hash === HISTORY_HASH) {
+    return { kind: 'history' }
+  }
+
+  if (hash.startsWith(DETAIL_HASH_PREFIX)) {
+    const receiptId = decodeURIComponent(hash.slice(DETAIL_HASH_PREFIX.length))
+
+    if (receiptId.length > 0) {
+      return { kind: 'detail', receiptId }
+    }
+
+    return { kind: 'history' }
+  }
+
+  return { kind: 'capture' }
+}
+
+function buildReceiptFlowHash(view: ReceiptFlowView) {
+  switch (view.kind) {
+    case 'capture':
+      return ''
+    case 'history':
+      return HISTORY_HASH
+    case 'detail':
+      return `${DETAIL_HASH_PREFIX}${encodeURIComponent(view.receiptId)}`
+  }
 }
