@@ -83,6 +83,7 @@ bunx convex deploy --cmd "bun run build"
 3. Set production environment variables in Netlify:
 
 - `CONVEX_DEPLOY_KEY`
+- `VITE_CONVEX_URL`
 - `WORKOS_CLIENT_ID`
 - `WORKOS_API_KEY`
 - `WORKOS_COOKIE_PASSWORD`
@@ -93,6 +94,7 @@ bunx convex deploy --cmd "bun run build"
 4. Set the matching environment variables in the Convex production deployment:
 
 - `WORKOS_CLIENT_ID`
+- `WORKOS_API_KEY`
 - `ALLOWED_USER_EMAILS`
 
 5. In WorkOS, configure the production callback URL as:
