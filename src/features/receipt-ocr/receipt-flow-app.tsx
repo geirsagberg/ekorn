@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import type {
   ReceiptFlowDataSource,
   ReceiptFlowSyncState,
 } from './receipt-flow-data-source'
 import { ReceiptFlowScreen, type ReceiptFlowView } from './receipt-flow-screen'
-import type { SavedReceipt } from './saved-receipts'
+import {
+  createReceiptFlowInitialState,
+  ReceiptFlowStateProvider,
+  useDispatchReceiptFlowAction,
+  useReceiptFlowState,
+} from './receipt-flow-state'
 import type { AnalyzeReceiptFn } from './shared'
 
 interface ReceiptFlowAppProps {
@@ -18,17 +23,27 @@ export function ReceiptFlowApp({
   dataSource,
   syncState,
 }: ReceiptFlowAppProps) {
-  const [receipts, setReceipts] = useState<SavedReceipt[]>([])
-  const [isLoadingReceipts, setIsLoadingReceipts] = useState(
-    syncState?.isLoading ?? true,
+  return (
+    <ReceiptFlowStateProvider
+      initialState={createReceiptFlowInitialState(syncState)}
+    >
+      <ReceiptFlowAppContent
+        analyzeReceipt={analyzeReceipt}
+        dataSource={dataSource}
+        syncState={syncState}
+      />
+    </ReceiptFlowStateProvider>
   )
-  const [storageError, setStorageError] = useState<string | null>(null)
-  const [view, setView] = useState<ReceiptFlowView>({ kind: 'capture' })
+}
 
-  const selectedReceipt =
-    view.kind === 'detail'
-      ? (receipts.find((receipt) => receipt.id === view.receiptId) ?? null)
-      : null
+function ReceiptFlowAppContent({
+  analyzeReceipt,
+  dataSource,
+  syncState,
+}: ReceiptFlowAppProps) {
+  const dispatch = useDispatchReceiptFlowAction()
+  const { isLoadingReceipts, receipts, selectedReceipt, storageError, view } =
+    useReceiptFlowState()
 
   useEffect(() => {
     if (syncState) {
@@ -37,7 +52,7 @@ export function ReceiptFlowApp({
 
     let isActive = true
 
-    setIsLoadingReceipts(true)
+    dispatch({ type: 'local_load_started' })
 
     void dataSource
       .listReceipts()
@@ -46,47 +61,37 @@ export function ReceiptFlowApp({
           return
         }
 
-        setReceipts(savedReceipts)
-        setStorageError(null)
+        dispatch({
+          type: 'local_load_succeeded',
+          receipts: savedReceipts,
+        })
       })
       .catch((error: unknown) => {
         if (!isActive) {
           return
         }
 
-        setStorageError(toStorageErrorMessage(error))
-      })
-      .finally(() => {
-        if (isActive) {
-          setIsLoadingReceipts(false)
-        }
+        dispatch({
+          type: 'local_load_failed',
+          message: toStorageErrorMessage(error),
+        })
       })
 
     return () => {
       isActive = false
     }
-  }, [dataSource, syncState])
+  }, [dataSource, dispatch, syncState])
 
   useEffect(() => {
     if (!syncState) {
       return
     }
 
-    setIsLoadingReceipts(syncState.isLoading)
-
-    if (syncState.receipts === undefined) {
-      return
-    }
-
-    setReceipts(syncState.receipts)
-    setStorageError(null)
-  }, [syncState])
-
-  useEffect(() => {
-    if (view.kind === 'detail' && !selectedReceipt && !isLoadingReceipts) {
-      setView({ kind: 'history' })
-    }
-  }, [isLoadingReceipts, selectedReceipt, view])
+    dispatch({
+      type: 'sync_state_received',
+      syncState,
+    })
+  }, [dispatch, syncState])
 
   return (
     <ReceiptFlowScreen
@@ -96,11 +101,10 @@ export function ReceiptFlowApp({
         try {
           const savedReceipt = await dataSource.captureReceipt(capture)
 
-          setReceipts((currentReceipts) =>
-            sortSavedReceipts([savedReceipt, ...currentReceipts]),
-          )
-          setStorageError(null)
-          setView({ kind: 'detail', receiptId: savedReceipt.id })
+          dispatch({
+            type: 'capture_succeeded',
+            receipt: savedReceipt,
+          })
         } catch (error) {
           throw new Error(toStorageErrorMessage(error))
         }
@@ -109,18 +113,23 @@ export function ReceiptFlowApp({
         try {
           await dataSource.deleteReceipt(receiptId)
 
-          setReceipts((currentReceipts) =>
-            currentReceipts.filter((receipt) => receipt.id !== receiptId),
-          )
-          setStorageError(null)
-          setView({ kind: 'history' })
+          dispatch({
+            type: 'delete_succeeded',
+            receiptId,
+          })
         } catch (error) {
-          setStorageError(toStorageErrorMessage(error))
+          dispatch({
+            type: 'storage_failed',
+            message: toStorageErrorMessage(error),
+          })
           throw error
         }
       }}
       onOpenReceipt={(receiptId) => {
-        setView({ kind: 'detail', receiptId })
+        dispatch({
+          type: 'view_changed',
+          view: { kind: 'detail', receiptId },
+        })
       }}
       onReprocessReceipt={async (receipt) => {
         try {
@@ -129,17 +138,15 @@ export function ReceiptFlowApp({
             receipt,
           })
 
-          setReceipts((currentReceipts) =>
-            currentReceipts.map((currentReceipt) =>
-              currentReceipt.id === updatedReceipt.id
-                ? updatedReceipt
-                : currentReceipt,
-            ),
-          )
-          setStorageError(null)
-          setView({ kind: 'detail', receiptId: updatedReceipt.id })
+          dispatch({
+            type: 'reprocess_succeeded',
+            receipt: updatedReceipt,
+          })
         } catch (error) {
-          setStorageError(toStorageErrorMessage(error))
+          dispatch({
+            type: 'storage_failed',
+            message: toStorageErrorMessage(error),
+          })
           throw error
         }
       }}
@@ -147,7 +154,12 @@ export function ReceiptFlowApp({
       selectedReceipt={selectedReceipt}
       storageError={storageError}
       view={view}
-      onViewChange={setView}
+      onViewChange={(nextView: ReceiptFlowView) => {
+        dispatch({
+          type: 'view_changed',
+          view: nextView,
+        })
+      }}
     />
   )
 }
@@ -158,10 +170,4 @@ function toStorageErrorMessage(error: unknown) {
   }
 
   return 'Could not update your receipt history.'
-}
-
-function sortSavedReceipts(receipts: SavedReceipt[]) {
-  return [...receipts].sort((left, right) =>
-    right.createdAt.localeCompare(left.createdAt),
-  )
 }
