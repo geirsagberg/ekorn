@@ -2,6 +2,11 @@ import { useAction, useConvexAuth } from 'convex/react'
 import { useEffect, useState } from 'react'
 import { api } from '../../../convex/_generated/api'
 
+export interface ViewerSyncState {
+  error: string | null
+  isLoading: boolean
+}
+
 export function useStoreCurrentUserEffect() {
   const { isLoading, isAuthenticated } = useConvexAuth()
   const storeCurrentUser = useAction(api.users.syncCurrent)
@@ -44,5 +49,5 @@ export function useStoreCurrentUserEffect() {
   return {
     error,
     isLoading: isLoading || (isAuthenticated && !hasStoredUser),
-  }
+  } satisfies ViewerSyncState
 }

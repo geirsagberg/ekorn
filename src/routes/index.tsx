@@ -19,6 +19,10 @@ import {
 import { analyzeReceiptPreview } from '#/features/receipt-ocr/analyze-receipt'
 import { ReceiptFlowApp } from '#/features/receipt-ocr/receipt-flow-app'
 import { useConvexReceiptFlowDataSource } from '#/features/receipt-ocr/receipt-flow-data-source'
+import {
+  AuthenticatedViewerStateProvider,
+  useAuthenticatedViewerState,
+} from '#/integrations/auth/authenticated-viewer-state'
 import { useStoreCurrentUserEffect } from '#/integrations/auth/use-store-current-user-effect'
 import { api } from '../../convex/_generated/api'
 
@@ -60,7 +64,9 @@ function App() {
       </Unauthenticated>
 
       <Authenticated>
-        <AuthenticatedApp analyzeReceipt={analyzeReceipt} />
+        <AuthenticatedViewerStateProvider>
+          <AuthenticatedApp analyzeReceipt={analyzeReceipt} />
+        </AuthenticatedViewerStateProvider>
       </Authenticated>
     </>
   )
@@ -75,47 +81,46 @@ function AuthenticatedApp({
 }) {
   const viewer = useQuery(api.users.current, {})
   const syncState = useStoreCurrentUserEffect()
+  const viewerState = useAuthenticatedViewerState({
+    syncState,
+    viewer,
+  })
 
-  if (syncState.error) {
-    return (
-      <CenteredState
-        title="Could not load your account"
-        body={syncState.error}
-        tone="error"
-      />
-    )
+  switch (viewerState.kind) {
+    case 'error':
+      return (
+        <CenteredState
+          title="Could not load your account"
+          body={viewerState.message}
+          tone="error"
+        />
+      )
+    case 'loading':
+      return (
+        <CenteredState
+          title="Preparing your account"
+          body="Syncing your secure receipt access."
+          isLoading
+        />
+      )
+    case 'expired':
+      return (
+        <CenteredState
+          title="Authentication expired"
+          body="Refresh the page and sign in again to continue."
+          tone="warning"
+        />
+      )
+    case 'denied':
+      return (
+        <AccessDeniedScreen
+          allowlistConfigured={viewerState.viewer.allowlistConfigured}
+          email={viewerState.viewer.email}
+        />
+      )
+    case 'ready':
+      return <AllowedReceiptApp analyzeReceipt={analyzeReceipt} />
   }
-
-  if (viewer === undefined || syncState.isLoading) {
-    return (
-      <CenteredState
-        title="Preparing your account"
-        body="Syncing your secure receipt access."
-        isLoading
-      />
-    )
-  }
-
-  if (!viewer) {
-    return (
-      <CenteredState
-        title="Authentication expired"
-        body="Refresh the page and sign in again to continue."
-        tone="warning"
-      />
-    )
-  }
-
-  if (!viewer.isAllowed) {
-    return (
-      <AccessDeniedScreen
-        allowlistConfigured={viewer.allowlistConfigured}
-        email={viewer.email}
-      />
-    )
-  }
-
-  return <AllowedReceiptApp analyzeReceipt={analyzeReceipt} />
 }
 
 function AllowedReceiptApp({
