@@ -11,6 +11,8 @@ describe('buildReceiptOcrPreviewResult', () => {
         { text: 'Milk', amount: 2.5 },
         { text: 'Bread', amount: null },
       ],
+      merchantName: 'Coop Mega',
+      purchaseDate: '2026-04-18',
       subtotal: 7,
       total: 8.25,
       currency: 'USD',
@@ -29,6 +31,8 @@ describe('buildReceiptOcrPreviewResult', () => {
       delta: -4.5,
       status: 'warning',
     })
+    expect(result.merchantName).toBe('Coop Mega')
+    expect(result.purchaseDate).toBe('2026-04-18')
   })
 })
 

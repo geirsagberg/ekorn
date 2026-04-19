@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import type { Response } from 'openai/resources/responses/responses'
+import { logReceiptDebug } from '../debug'
 import type { ReceiptOcrParsedProvider } from '../shared'
 
 const DEFAULT_OPENAI_MODEL = 'gpt-5.4-mini'
@@ -7,7 +8,15 @@ const DEFAULT_OPENAI_MODEL = 'gpt-5.4-mini'
 const OPENAI_RECEIPT_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['items', 'subtotal', 'total', 'currency', 'rawWarnings'],
+  required: [
+    'items',
+    'merchantName',
+    'purchaseDate',
+    'subtotal',
+    'total',
+    'currency',
+    'rawWarnings',
+  ],
   properties: {
     items: {
       type: 'array',
@@ -22,6 +31,8 @@ const OPENAI_RECEIPT_JSON_SCHEMA = {
         },
       },
     },
+    merchantName: { type: ['string', 'null'] },
+    purchaseDate: { type: ['string', 'null'] },
     subtotal: { type: ['number', 'null'] },
     total: { type: ['number', 'null'] },
     currency: { type: ['string', 'null'] },
@@ -38,6 +49,8 @@ export interface OpenAiReceiptParseResult {
     amount: number | null
     confidence: number | null
   }>
+  merchantName: string | null
+  purchaseDate: string | null
   subtotal: number | null
   total: number | null
   currency: string | null
@@ -69,6 +82,8 @@ export function createOpenAiReceiptProvider(
             'You extract structured grocery receipt data from a single receipt image.',
             'Return only purchasable line items in items.',
             'Do not include subtotal, tax, discount, tip, or total rows in items.',
+            'Extract merchantName when you can infer the store or merchant confidently from the receipt header, otherwise return null.',
+            'Extract purchaseDate in YYYY-MM-DD form when you can infer the transaction date confidently, otherwise return null.',
             'If an amount is not legible for an item, return null for that amount.',
             'Extract subtotal and total when present.',
             'Set currency to an ISO 4217 code when you can infer it confidently, otherwise null.',
@@ -104,12 +119,21 @@ export function createOpenAiReceiptProvider(
         })
         const parsed = parseOpenAiReceiptResult(response)
 
+        logReceiptDebug('ocr', {
+          event: 'openai_receipt_parsed',
+          itemCount: parsed.items.length,
+          merchantName: parsed.merchantName,
+          rawWarningCount: parsed.rawWarnings.length,
+        })
+
         return {
           items: parsed.items.map((item) => ({
             text: item.text,
             amount: item.amount,
             confidence: item.confidence ?? undefined,
           })),
+          merchantName: parsed.merchantName,
+          purchaseDate: parsed.purchaseDate,
           subtotal: parsed.subtotal,
           total: parsed.total,
           currency: parsed.currency,
@@ -150,6 +174,16 @@ export function normalizeOpenAiReceiptParseResult(
         }
       })
       .filter((item) => item.text.length > 0),
+    merchantName:
+      typeof value.merchantName === 'string' &&
+      value.merchantName.trim().length > 0
+        ? value.merchantName.trim()
+        : null,
+    purchaseDate:
+      typeof value.purchaseDate === 'string' &&
+      isValidPurchaseDate(value.purchaseDate.trim())
+        ? value.purchaseDate.trim()
+        : null,
     subtotal: parseOptionalNumber(value.subtotal),
     total: parseOptionalNumber(value.total),
     currency:
@@ -234,6 +268,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseOptionalNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function isValidPurchaseDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false
+  }
+
+  const parsed = new Date(`${value}T00:00:00.000Z`)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return false
+  }
+
+  return parsed.toISOString().slice(0, 10) === value
 }
 
 function getOpenAiReceiptOcrConfig(): OpenAiReceiptOcrConfig {

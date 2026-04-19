@@ -157,6 +157,66 @@ describe('categorizeReceiptPreview', () => {
       categories: ['Household', 'Paper Goods'],
     })
   })
+
+  it('logs whether stored categorization was used', async () => {
+    const repository = createInMemoryReceiptCategorizationRepository()
+    const logSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
+
+    await repository.ensureStarterTaxonomy()
+    await repository.persistAiSuggestion({
+      rawLabelKey: createReceiptLabelKey('Milk 1L'),
+      rawLabel: 'Milk 1L',
+      normalizedLabelKey: createNormalizedLabelKey('whole milk'),
+      normalizedLabel: 'whole milk',
+      categories: ['Food', 'Dairy'],
+      confidence: 0.93,
+    })
+
+    await categorizeReceiptPreview({
+      previewResult: createPreviewResult([{ text: 'Milk 1L', amount: 2.5 }]),
+      repository,
+      ai: {
+        categorizeItems: vi.fn().mockResolvedValue([]),
+      },
+    })
+
+    await categorizeReceiptPreview({
+      previewResult: createPreviewResult([{ text: 'Paper towels', amount: 5 }]),
+      repository,
+      ai: {
+        categorizeItems: vi.fn().mockResolvedValue([
+          {
+            itemIndex: 0,
+            normalizedLabel: 'paper towels',
+            categories: ['Household', 'Paper Goods'],
+            confidence: 0.91,
+            source: 'ai_new' as const,
+          },
+        ]),
+      },
+    })
+
+    const logLines = logSpy.mock.calls.map((call) => String(call[0]))
+
+    expect(
+      logLines.some(
+        (line) =>
+          line.includes('[receipt-categorization]') &&
+          line.includes('"usedStoredCategorization":true') &&
+          line.includes('"source":"raw_cache"'),
+      ),
+    ).toBe(true)
+    expect(
+      logLines.some(
+        (line) =>
+          line.includes('[receipt-categorization]') &&
+          line.includes('"usedStoredCategorization":false') &&
+          line.includes('"source":"ai_new"'),
+      ),
+    ).toBe(true)
+
+    logSpy.mockRestore()
+  })
 })
 
 function createPreviewResult(
@@ -173,6 +233,8 @@ function createPreviewResult(
     subtotal: null,
     total: null,
     currency: 'USD',
+    purchaseDate: null,
+    merchantName: null,
     sanityCheck: {
       itemSum: null,
       compareTarget: 'none',

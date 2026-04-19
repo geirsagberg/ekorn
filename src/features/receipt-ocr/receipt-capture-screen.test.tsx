@@ -28,58 +28,43 @@ describe('ReceiptCaptureScreen', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders extracted line items after a successful OCR response', async () => {
+  it('passes the original image file to the save callback after a successful OCR response', async () => {
     const analyzeReceipt = vi.fn().mockResolvedValue(createOcrResult())
+    const onCaptureSuccess = vi.fn().mockResolvedValue(undefined)
     const { container } = render(
-      <ReceiptCaptureScreen analyzeReceipt={analyzeReceipt} />,
+      <ReceiptCaptureScreen
+        analyzeReceipt={analyzeReceipt}
+        onCaptureSuccess={onCaptureSuccess}
+      />,
     )
+    const receiptFile = new File(['receipt'], 'receipt.jpg', {
+      type: 'image/jpeg',
+    })
 
     fireEvent.change(getFileInput(container), {
       target: {
-        files: [new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' })],
+        files: [receiptFile],
       },
     })
 
-    expect(await screen.findByText('Extracted lines')).toBeTruthy()
-    expect(screen.getByText('Milk')).toBeTruthy()
-    expect(screen.getByText('Bread')).toBeTruthy()
-    expect(screen.getByText('Dairy')).toBeTruthy()
-    expect(screen.getByText(/91% confidence/)).toBeTruthy()
-    expect(screen.getByText('Subtotal')).toBeTruthy()
+    await waitFor(() => {
+      expect(onCaptureSuccess).toHaveBeenCalledTimes(1)
+    })
     expect(analyzeReceipt).toHaveBeenCalledTimes(1)
-  })
-
-  it('shows a warning and still renders rows when sanity check fails', async () => {
-    const analyzeReceipt = vi.fn().mockResolvedValue(
-      createOcrResult({
-        sanityCheck: {
-          itemSum: 7,
-          compareTarget: 'subtotal',
-          expected: 6.5,
-          delta: 0.5,
-          status: 'warning',
-        },
-        rawWarnings: ['Line item amounts do not match the receipt summary.'],
-      }),
-    )
-    const { container } = render(
-      <ReceiptCaptureScreen analyzeReceipt={analyzeReceipt} />,
-    )
-
-    fireEvent.change(getFileInput(container), {
-      target: {
-        files: [new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' })],
-      },
+    expect(onCaptureSuccess).toHaveBeenCalledWith({
+      analysis: createOcrResult(),
+      imageFile: receiptFile,
     })
-
-    expect(await screen.findByText(/Check this receipt\./)).toBeTruthy()
-    expect(screen.getByText('Milk')).toBeTruthy()
   })
 
   it('shows a validation error for non-image files without calling OCR', async () => {
     const analyzeReceipt = vi.fn()
+    const onCaptureSuccess = vi.fn()
     const { container } = render(
-      <ReceiptCaptureScreen analyzeReceipt={analyzeReceipt} />,
+      <ReceiptCaptureScreen
+        analyzeReceipt={analyzeReceipt}
+        onCaptureSuccess={onCaptureSuccess}
+      />,
     )
 
     fireEvent.change(getFileInput(container), {
@@ -96,14 +81,19 @@ describe('ReceiptCaptureScreen', () => {
       ).toBeTruthy()
     })
     expect(analyzeReceipt).not.toHaveBeenCalled()
+    expect(onCaptureSuccess).not.toHaveBeenCalled()
   })
 
   it('shows a retryable error when OCR fails', async () => {
     const analyzeReceipt = vi
       .fn()
       .mockRejectedValue(new Error('Receipt OCR failed. Try another photo.'))
+    const onCaptureSuccess = vi.fn()
     const { container } = render(
-      <ReceiptCaptureScreen analyzeReceipt={analyzeReceipt} />,
+      <ReceiptCaptureScreen
+        analyzeReceipt={analyzeReceipt}
+        onCaptureSuccess={onCaptureSuccess}
+      />,
     )
 
     fireEvent.change(getFileInput(container), {
@@ -115,6 +105,7 @@ describe('ReceiptCaptureScreen', () => {
     expect(
       await screen.findByText('Receipt OCR failed. Try another photo.'),
     ).toBeTruthy()
+    expect(onCaptureSuccess).not.toHaveBeenCalled()
   })
 })
 
@@ -153,6 +144,8 @@ function createOcrResult(
     subtotal: 7,
     total: 8.25,
     currency: 'USD',
+    purchaseDate: null,
+    merchantName: null,
     sanityCheck: {
       itemSum: 7,
       compareTarget: 'subtotal',

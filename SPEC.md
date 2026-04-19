@@ -1,137 +1,138 @@
 # Ekorn — Current Product Spec
 
 ## Summary
-Ekorn is a mobile-first web app for capturing grocery receipts and turning them into structured receipt data.
+Ekorn is a mobile-first web app for capturing grocery receipts and turning them into structured receipt data that can be saved and revisited later.
 
-The current product slice is a receipt OCR and AI-assisted categorization preview flow on a single mobile-first capture screen, while longer-term spending analysis and richer receipt management remain ahead.
+The current product slice is a small three-screen mobile flow:
+- `Capture`
+- `History`
+- `Receipt detail`
 
 ## Current Goal
-The current goal is a single mobile-first receipt capture and preview screen with one clear primary action: add a receipt photo.
+The current goal is a useful mobile capture loop, not just a preview demo.
 
-That action should let the user choose a photo from:
-- the camera
-- the photo gallery or file picker
+The app should open on `Capture`, let the user add one receipt photo, show one clear processing state while the full analysis runs, automatically save successful receipts on-device, and open the saved result in `Receipt detail`.
 
-After selection, the app should:
-- show the selected receipt image on the same screen
-- run OCR analysis on the uploaded image
-- show extracted line items and summary totals when available
-- show suggested categories for extracted receipt lines when categorization succeeds
-- show clear loading, warning, and failure states
+The app should also keep a `History` of successful receipts so the user can revisit structured receipt data without defaulting to the raw image.
 
-This slice is intentionally narrow. It focuses on the app shell, mobile interaction model, image upload flow, OCR preview, and preview-time learned categorization, with receipt persistence, history, review workflows, and dashboards planned separately.
+When a receipt is captured in a foreign currency, the app should also try to convert it into the app's home currency using the receipt purchase date when available.
 
 ## Current Slice Scope
 
 ### In Scope Now
 - A web app built with Bun, TanStack Start, React, TypeScript, TanStack Query, Convex, and Material UI.
-- A single mobile-first screen.
-- One primary button for adding a receipt photo.
-- Browser support for taking a photo with the device camera when available.
-- Browser support for selecting an existing image from the gallery or file picker.
-- Clear empty-state UI focused on the first receipt.
-- Selected-photo preview on the same screen.
-- Basic client-side receipt image validation, including image-only uploads and file-size limits.
-- Receipt OCR preview on upload.
-- Extracted line items display.
-- AI-assisted receipt-line categorization during preview.
-- Category chips and confidence display for categorized line items.
-- Deterministic line-label normalization for categorization cache keys.
-- Persistent learned mappings for raw labels and normalized labels through Convex.
-- Seeded grocery taxonomy with system-generated extension when no existing path fits.
-- Extracted subtotal and total display when present.
-- Sanity-check warnings when extracted line items do not match receipt totals closely enough.
-- Retryable error states when OCR fails.
+- A mobile-first app shell with bottom navigation for top-level navigation.
+- A default `Capture` screen on app launch.
+- One primary capture action that uses the browser's native camera-or-gallery chooser behavior when available.
+- Selected-photo preview during capture.
+- One processing state while OCR and categorization complete.
+- Automatic save after successful processing.
+- No save when processing fails.
+- On-device persistence for saved receipts using IndexedDB-level storage.
+- Durable storage of both the original receipt image and the structured analysis result for successful captures.
+- Local historical FX conversion for foreign-currency receipts using purchase date when available and capture date as a fallback.
+- Local caching of historical FX lookups so recent conversions can be reused without another network request.
+- A `History` screen with minimal rows showing merchant, capture time, total when known, and status.
+- A `Receipt detail` screen that shows structured receipt data first.
+- An explicit `View receipt image` action before showing the raw receipt image.
+- A `Delete receipt` action in `Receipt detail` for local testing and iteration.
+- `Needs review` status when totals do not match closely enough or categorization confidence is low.
+- `Unknown merchant` as the fallback label when merchant extraction is missing.
+- Existing server-side OCR and categorization flow for receipt analysis.
+- Convex-backed taxonomy storage and learned categorization mappings.
+- Deleting a saved receipt removes only the saved receipt record and image, while learned categorization data remains available for later captures.
 
 ### Explicitly Out of Scope For Now
-- Persisting uploaded receipt assets.
-- Receipt list pages or history views.
-- Receipt detail pages beyond the current capture-and-preview screen.
-- Structured receipt review and correction flows.
-- User-managed category editing or override flows.
-- Household-specific categorization or taxonomy overrides.
-- Spending dashboards and summaries across multiple receipts.
-- Duplicate detection.
-- Authentication.
+- Manual editing of receipts or categories.
+- Mark-as-reviewed actions.
+- Search or filtering in history.
+- Duplicate detection or merge flows for repeated captures of the same receipt.
+- Authentication and cloud sync.
 - Shared household access.
+- Manual FX overrides or exchange-rate editing.
+- User-configurable home-currency settings.
 - PDF upload.
+- Background processing or asynchronous fallback paths.
+- Spending dashboards and multi-receipt analytics.
 - Admin tooling.
-- Background jobs or processing pipelines.
 
-## Primary User Story
-As a user on my phone, I want to tap one button and add a receipt photo from the camera or gallery so that I can quickly capture a receipt right after shopping and immediately preview what the app extracted and how it was categorized.
+## Primary User Stories
+- As a mobile user, I want to capture a receipt right after shopping so that I can save it before I forget.
+- As a mobile user, I want one clear action to add a receipt photo so that the app feels simple and fast.
+- As a mobile user, I want to see clear progress while the receipt is being processed so that I know the app is working.
+- As a returning user, I want saved receipt history so that the app is useful beyond the current session.
+- As a cautious user, I want receipts that look uncertain to be marked `Needs review` so that I know which ones deserve attention.
+- As a traveler, I want foreign-currency receipts converted into my home currency using the purchase date so that saved totals are easier to understand later.
 
 ## Screen Requirements
 
-### Layout
-- Design for mobile first.
-- The screen should work comfortably one-handed on a phone.
-- The primary action should be obvious without scrolling.
-- The screen should start simple and avoid secondary navigation for now.
+### Capture
+- Opens by default on app launch.
+- Shows one obvious primary action to add a receipt photo.
+- Lets the browser handle camera or existing-photo choice when possible.
+- Shows the selected receipt image before or during processing.
+- Shows one clear processing state for the full analysis flow.
+- If processing succeeds, saves the receipt automatically and opens `Receipt detail`.
+- If processing fails, shows a retryable error and does not create a saved receipt.
 
-### Interaction
-- Provide one primary button for adding a photo.
-- The implementation may use one native file input with camera-friendly attributes if that is the simplest and most reliable approach.
-- If the platform supports it, the flow should make it easy to capture directly from the camera.
-- If the user does not want to use the camera, the same flow should allow choosing an existing photo.
-- After a photo is selected, the same screen should present the preview and OCR result without navigating away.
+### History
+- Lists successful saved receipts only.
+- Keeps rows minimal and easy to scan on mobile.
+- Shows merchant, capture time, total if known, and status.
+- Shows the home-currency total for converted foreign receipts and keeps the original amount as supporting text.
+- Opens a saved receipt into `Receipt detail`.
 
-### States
-- Initial empty state.
-- Picking state if needed.
-- Selected-photo state.
-- OCR analyzing state.
-- Success state with extracted receipt data and category suggestions.
-- Warning state when the OCR result is usable but needs review.
-- Error state for invalid files or failed OCR analysis.
+### Receipt Detail
+- Defaults to structured receipt data, not the raw image.
+- Shows extracted line items, categories, and summary totals when available.
+- Shows `Needs review` status when the saved result is uncertain.
+- Shows original totals and, when available, a home-currency conversion summary with a short note about the historical FX rate used.
+- Reveals the original receipt image only after an explicit user action.
+- Supports deleting the current saved receipt without clearing learned categorization knowledge.
 
 ## UX Principles For This Phase
 - Mobile first.
-- One screen, one primary action.
-- No dashboard thinking yet.
-- No speculative complexity.
-- Prefer reliable browser behavior over clever UI.
-- Prefer a useful preview over premature workflow branching.
-- Show category suggestions as lightweight guidance, not as a full review workflow.
+- Keep the flow small and obvious.
+- Prefer one synchronous capture-to-save loop over branching workflows.
+- Favor structured interpretation over raw image inspection.
+- Keep history useful without adding dashboard complexity.
+- Prefer restrained, readable UI over speculative features.
 
 ## Technical Direction For This Phase
 - Package manager/runtime: Bun.
 - App framework: TanStack Start in SPA mode.
-- UI: React + TypeScript.
+- UI: React + TypeScript + Material UI.
 - Data fetching and cache sync: TanStack Query.
 - Backend: Convex for taxonomy storage and learned categorization mappings.
-- OCR preview runs through pluggable providers.
+- Receipt persistence: on-device IndexedDB storage in the browser.
+- Historical FX conversion: Frankfurter API transport pinned to ECB provider, with local IndexedDB caching and `NOK` as the default home currency.
+- OCR preview uses OpenAI through the existing provider facade.
 - Categorization runs after OCR preview and reuses persistent cache entries before calling AI.
-- Category taxonomy is global, English, and seeded with core grocery branches.
 - Use the latest stable versions available at implementation time for core dependencies.
 
 ## Deferred Product Vision
 These remain part of the broader product direction:
-- Persisted receipt storage.
-- Receipt history.
-- Structured receipt review and correction.
-- Spending dashboards.
-- Richer taxonomy curation, overrides, and rollups.
-- Duplicate detection.
-- Authentication and household sharing.
+- Receipt correction and review workflows beyond status flags.
+- Search and richer history tools.
+- Duplicate detection for repeated captures, reprocessed images, and near-identical saved receipts.
+- Authentication and cloud sync.
+- Household-aware data and sharing.
+- Spending dashboards and analytics.
 - Admin and audit views.
 
-## Likely Next Phases
-1. Persist the selected receipt asset.
-2. Add basic receipt history.
-3. Add structured receipt review, correction, and category override workflows.
-4. Add household-aware taxonomy and learned mapping management.
-5. Add multi-receipt spending views and summaries.
-
 ## Success Criteria For The Current Slice
-- The app opens to a single mobile-first screen.
-- The user can tap one clear button to add a receipt photo.
-- On supported devices, the flow can use the camera.
-- The same flow also supports choosing an existing image.
-- The selected image is shown on the same screen.
-- OCR analysis starts automatically after image selection.
-- Extracted items and summary totals are shown when parsing succeeds.
-- Category suggestions are shown for receipt lines when categorization succeeds.
-- Learned categorization reuse reduces repeated AI work for duplicate or normalized line labels.
-- The app shows clear warning and error feedback when analysis is incomplete or fails.
-- The experience feels clean and obvious on a phone.
+- The app opens on `Capture`.
+- The user can add a receipt photo with one clear action.
+- The browser can offer camera or gallery selection where supported.
+- The app shows one clear processing state while analysis runs.
+- Successful processing automatically saves the receipt locally.
+- Failed processing does not create a saved receipt.
+- Successful captures open directly in `Receipt detail`.
+- `History` shows previously saved receipts.
+- Foreign-currency receipts are converted into `NOK` when a historical rate is available.
+- If purchase date is missing, the app falls back to capture date and labels the conversion basis accordingly.
+- If the FX lookup fails, the app reuses the newest cached historical rate on or before the requested date when possible.
+- `Receipt detail` leads with structured data and keeps image viewing explicit.
+- Deleting a receipt removes it from history without clearing reusable categorization mappings.
+- Receipts with low-confidence extraction or mismatched totals are marked `Needs review`.
+- The overall experience feels clean, mobile-first, and useful beyond a single session.

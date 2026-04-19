@@ -1,6 +1,6 @@
 export const MAX_RECEIPT_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 
-export type ReceiptOcrProviderName = 'openai' | 'aws'
+export type ReceiptOcrProviderName = 'openai'
 
 export type ReceiptItemCategorizationSource =
   | 'raw_cache'
@@ -23,6 +23,8 @@ export interface ReceiptOcrPreviewItem extends ReceiptOcrParsedItem {
 
 export interface ReceiptOcrParsedResult {
   items: ReceiptOcrParsedItem[]
+  merchantName: string | null
+  purchaseDate: string | null
   subtotal: number | null
   total: number | null
   currency: string | null
@@ -39,6 +41,8 @@ export interface ReceiptSanityCheck {
 
 export interface ReceiptOcrPreviewResult {
   items: ReceiptOcrPreviewItem[]
+  merchantName: string | null
+  purchaseDate: string | null
   subtotal: number | null
   total: number | null
   currency: string | null

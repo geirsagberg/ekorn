@@ -38,6 +38,7 @@ describe('OpenAI receipt OCR provider', () => {
           { text: 'Milk', amount: 2.5, confidence: 0.97 },
           { text: 'Bread', amount: 4.5, confidence: 0.94 },
         ],
+        merchantName: 'Coop Mega',
         subtotal: 7,
         total: 8.25,
         currency: 'usd',
@@ -58,6 +59,8 @@ describe('OpenAI receipt OCR provider', () => {
         { text: 'Milk', amount: 2.5, confidence: 0.97 },
         { text: 'Bread', amount: 4.5, confidence: 0.94 },
       ],
+      merchantName: 'Coop Mega',
+      purchaseDate: null,
       subtotal: 7,
       total: 8.25,
       currency: 'USD',
@@ -70,6 +73,8 @@ describe('OpenAI receipt OCR provider', () => {
       output: [{ type: 'message', content: [] }],
       output_text: JSON.stringify({
         items: [],
+        merchantName: null,
+        purchaseDate: '2026-04-18',
         subtotal: null,
         total: 12.4,
         currency: null,
@@ -87,6 +92,8 @@ describe('OpenAI receipt OCR provider', () => {
 
     expect(result).toEqual({
       items: [],
+      merchantName: null,
+      purchaseDate: '2026-04-18',
       subtotal: null,
       total: 12.4,
       currency: null,
@@ -152,6 +159,8 @@ describe('OpenAI receipt OCR provider', () => {
           { text: '  Milk  ', amount: 2.5, confidence: 0.97 },
           { text: '   ', amount: 1.5, confidence: 0.5 },
         ],
+        merchantName: '  Rema 1000  ',
+        purchaseDate: '2026-04-18',
         subtotal: 2.5,
         total: 2.5,
         currency: 'nok',
@@ -159,6 +168,30 @@ describe('OpenAI receipt OCR provider', () => {
       }),
     ).toEqual({
       items: [{ text: 'Milk', amount: 2.5, confidence: 0.97 }],
+      merchantName: 'Rema 1000',
+      purchaseDate: '2026-04-18',
+      subtotal: 2.5,
+      total: 2.5,
+      currency: 'NOK',
+      rawWarnings: [],
+    })
+  })
+
+  it('normalizes malformed purchase dates to null', () => {
+    expect(
+      normalizeOpenAiReceiptParseResult({
+        items: [{ text: 'Milk', amount: 2.5, confidence: 0.97 }],
+        merchantName: 'Rema 1000',
+        purchaseDate: '2026-02-30',
+        subtotal: 2.5,
+        total: 2.5,
+        currency: 'nok',
+        rawWarnings: [],
+      }),
+    ).toEqual({
+      items: [{ text: 'Milk', amount: 2.5, confidence: 0.97 }],
+      merchantName: 'Rema 1000',
+      purchaseDate: null,
       subtotal: 2.5,
       total: 2.5,
       currency: 'NOK',
