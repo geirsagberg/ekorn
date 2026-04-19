@@ -152,6 +152,36 @@ describe('OpenAI receipt OCR provider', () => {
     ).rejects.toThrow('Receipt OCR is busy right now. Try again in a moment.')
   })
 
+  it('logs provider failures before mapping them to a user-safe error', async () => {
+    const logSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const provider = createOpenAiReceiptProvider({
+      apiKey: 'test-openai-key',
+      model: 'gpt-4.1-mini',
+    })
+
+    responsesCreateMock.mockRejectedValueOnce(
+      Object.assign(new Error('bad api key'), { status: 401 }),
+    )
+
+    await expect(
+      provider.analyzeReceipt(
+        new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' }),
+      ),
+    ).rejects.toThrow('Receipt OCR is not configured yet.')
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"event":"openai_receipt_failed"'),
+    )
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"errorStatus":401'),
+    )
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"model":"gpt-4.1-mini"'),
+    )
+
+    logSpy.mockRestore()
+  })
+
   it('normalizes structured output by dropping blank rows', () => {
     expect(
       normalizeOpenAiReceiptParseResult({

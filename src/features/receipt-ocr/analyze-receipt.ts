@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getAuth } from '@workos/authkit-tanstack-react-start'
+import { isLocalAuthBypassEnabled } from '#/integrations/auth/local-bypass'
 import {
   authPolicyMessages,
   requireAllowlistedEmail,
@@ -16,15 +17,17 @@ import {
 export const analyzeReceiptPreview = createServerFn({ method: 'POST' })
   .inputValidator((data: FormData) => data)
   .handler(async ({ data }): Promise<ReceiptOcrPreviewResult> => {
-    const { user } = await getAuth()
-    const authenticatedUser = requireAuthenticatedValue(
-      user,
-      authPolicyMessages.receiptProcessingRequiresSignIn,
-    )
+    if (!isLocalAuthBypassEnabled()) {
+      const { user } = await getAuth()
+      const authenticatedUser = requireAuthenticatedValue(
+        user,
+        authPolicyMessages.receiptProcessingRequiresSignIn,
+      )
 
-    requireAllowlistedEmail(authenticatedUser.email ?? null, {
-      notAllowedMessage: authPolicyMessages.receiptProcessingNotAllowed,
-    })
+      requireAllowlistedEmail(authenticatedUser.email ?? null, {
+        notAllowedMessage: authPolicyMessages.receiptProcessingNotAllowed,
+      })
+    }
 
     const file = data.get('receiptImage')
 
@@ -61,7 +64,13 @@ export const analyzeReceiptPreview = createServerFn({ method: 'POST' })
         })
 
         return categorizedResult
-      } catch {
+      } catch (error) {
+        logReceiptDebug('categorization', {
+          event: 'receipt_preview_categorization_failed',
+          errorMessage: error instanceof Error ? error.message : 'unknown',
+          providerName: provider.providerName,
+        })
+
         return previewResult
       }
     } catch (error) {

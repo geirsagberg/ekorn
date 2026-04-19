@@ -140,6 +140,18 @@ export function createOpenAiReceiptProvider(
           rawWarnings: parsed.rawWarnings,
         }
       } catch (error) {
+        logReceiptDebug('ocr', {
+          event: 'openai_receipt_failed',
+          model,
+          errorMessage: error instanceof Error ? error.message : 'unknown',
+          errorStatus:
+            error instanceof Error &&
+            'status' in error &&
+            typeof error.status === 'number'
+              ? error.status
+              : null,
+        })
+
         throw toOpenAiReceiptOcrError(error)
       }
     },

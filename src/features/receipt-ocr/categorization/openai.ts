@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import type { Response } from 'openai/resources/responses/responses'
+import { logReceiptDebug } from '../debug'
 import type { CategorizationAi, CategorizationAiSuggestion } from './service'
 import { normalizeCategoryName, normalizeReceiptLabel } from './text'
 
@@ -145,7 +146,19 @@ export function createOpenAiReceiptCategorizer(
             } satisfies CategorizationAiSuggestion,
           ]
         })
-      } catch {
+      } catch (error) {
+        logReceiptDebug('categorization', {
+          event: 'openai_categorization_failed',
+          model,
+          errorMessage: error instanceof Error ? error.message : 'unknown',
+          errorStatus:
+            error instanceof Error &&
+            'status' in error &&
+            typeof error.status === 'number'
+              ? error.status
+              : null,
+        })
+
         return []
       }
     },
@@ -235,7 +248,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getOpenAiCategorizationConfig(): OpenAiCategorizationConfig {
   return {
     apiKey: readEnvironmentValue('OPENAI_API_KEY') ?? null,
-    model: readEnvironmentValue('OPENAI_CATEGORIZATION_MODEL') ?? null,
+    model:
+      readEnvironmentValue('OPENAI_CATEGORIZATION_MODEL') ??
+      readEnvironmentValue('OPENAI_MODEL') ??
+      null,
   }
 }
 

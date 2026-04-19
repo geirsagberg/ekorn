@@ -24,6 +24,13 @@ Fill in:
 - `ALLOWED_USER_EMAILS`
 - `OPENAI_API_KEY`
 
+For local browser debugging without WorkOS, you can also set:
+
+- `VITE_LOCAL_AUTH_BYPASS=1`
+
+When enabled in local development, the app skips sign-in and uses IndexedDB for receipt history instead of cloud-backed receipt storage.
+Local development also disables linked Netlify cloud environment-variable loading by default. To opt back into Netlify cloud env values for a local debugging session, set `NETLIFY_CLOUD_ENV_IN_DEV=1`.
+
 3. Start Convex in another terminal when ready to connect the backend:
 
 ```sh
@@ -67,6 +74,7 @@ Set these server-side environment variables before using the OCR flow:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` optional override
+- `OPENAI_CATEGORIZATION_MODEL` optional override for categorization; falls back to `OPENAI_MODEL`
 - `OCR_PROVIDER` optional; if set, it must be `openai`
 
 ## Netlify Deployment

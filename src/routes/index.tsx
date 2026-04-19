@@ -16,13 +16,16 @@ import {
   Unauthenticated,
   useQuery,
 } from 'convex/react'
+import { useState } from 'react'
 import { analyzeReceiptPreview } from '#/features/receipt-ocr/analyze-receipt'
 import { ReceiptFlowApp } from '#/features/receipt-ocr/receipt-flow-app'
 import { useConvexReceiptFlowDataSource } from '#/features/receipt-ocr/receipt-flow-data-source'
+import { createIndexedDbReceiptFlowDataSource } from '#/features/receipt-ocr/receipt-flow-indexeddb-data-source'
 import {
   AuthenticatedViewerStateProvider,
   useAuthenticatedViewerState,
 } from '#/integrations/auth/authenticated-viewer-state'
+import { isLocalAuthBypassEnabled } from '#/integrations/auth/local-bypass'
 import { useStoreCurrentUserEffect } from '#/integrations/auth/use-store-current-user-effect'
 import { api } from '../../convex/_generated/api'
 
@@ -30,14 +33,26 @@ const CONVEX_URL = import.meta.env.VITE_CONVEX_URL
 
 export const Route = createFileRoute('/')({
   component: App,
-  loader: async () => ({
-    signInUrl: await getSignInUrl(),
-  }),
+  loader: async () => {
+    if (isLocalAuthBypassEnabled()) {
+      return {
+        signInUrl: null,
+      }
+    }
+
+    return {
+      signInUrl: await getSignInUrl(),
+    }
+  },
 })
 
 function App() {
   const analyzeReceipt = useServerFn(analyzeReceiptPreview)
   const { signInUrl } = Route.useLoaderData()
+
+  if (isLocalAuthBypassEnabled()) {
+    return <LocalTestingApp analyzeReceipt={analyzeReceipt} />
+  }
 
   if (!CONVEX_URL) {
     return (
@@ -141,7 +156,42 @@ function AllowedReceiptApp({
   )
 }
 
-function SignInScreen({ signInUrl }: { signInUrl: string }) {
+function LocalTestingApp({
+  analyzeReceipt,
+}: {
+  analyzeReceipt: (options: {
+    data: FormData
+  }) => Promise<import('#/features/receipt-ocr/shared').ReceiptOcrPreviewResult>
+}) {
+  const [dataSource] = useState(() => createIndexedDbReceiptFlowDataSource())
+
+  return (
+    <Box
+      component="main"
+      sx={{
+        minHeight: '100dvh',
+        background:
+          'linear-gradient(180deg, #f6f2ea 0%, #efe6d6 42%, #fbf8f2 100%)',
+        py: 2,
+      }}
+    >
+      <Container maxWidth="sm" sx={{ px: 2 }}>
+        <Stack spacing={2}>
+          <Alert severity="warning">
+            Local auth bypass is enabled. Capture and history use local-only
+            IndexedDB storage, and sign-in is skipped for debugging.
+          </Alert>
+          <ReceiptFlowApp
+            analyzeReceipt={analyzeReceipt}
+            dataSource={dataSource}
+          />
+        </Stack>
+      </Container>
+    </Box>
+  )
+}
+
+function SignInScreen({ signInUrl }: { signInUrl: string | null }) {
   return (
     <CenteredState
       title="Sign in to Ekorn"
@@ -149,7 +199,7 @@ function SignInScreen({ signInUrl }: { signInUrl: string }) {
       action={
         <Button
           component="a"
-          href={signInUrl}
+          href={signInUrl ?? '#'}
           variant="contained"
           sx={{
             alignSelf: 'flex-start',

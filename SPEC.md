@@ -29,8 +29,10 @@ When a receipt is captured in a foreign currency, the app should also try to con
 - Automatic save after successful processing.
 - No save when processing fails.
 - Required authentication before using the app.
+- A local-only auth bypass may be used during development to unblock browser debugging, but it must not affect deployed environments.
 - Single-user allowlist protection so only the configured account can use the deployed app.
 - Cloud-backed persistence for saved receipts in Convex.
+- When the local-only auth bypass is enabled in development, receipt history may fall back to IndexedDB instead of Convex.
 - Durable storage of both the original receipt image and the structured analysis result for successful captures in Convex file storage and Convex tables.
 - PWA installability with Android-friendly add-to-home-screen support, including a manifest, service worker, and in-app install guidance.
 - Optional browser-local caching is allowed, but it is not the source of truth for saved receipts.
@@ -117,7 +119,7 @@ When a receipt is captured in a foreign currency, the app should also try to con
 - Receipt persistence: Convex tables plus Convex file storage.
 - Historical FX conversion: Frankfurter API transport pinned to ECB provider, with local IndexedDB caching and `NOK` as the default home currency.
 - OCR preview uses OpenAI through the existing provider facade.
-- Categorization runs after OCR preview and reuses persistent cache entries before calling AI.
+- Categorization runs after OCR preview, reuses persistent cache entries before calling AI, and defaults to the same server-side OpenAI model configuration as OCR unless a dedicated categorization model override is provided.
 - Deployment target: Netlify for the TanStack Start app and Convex for backend/data.
 - PWA support: web manifest, service worker app-shell caching, and Android add-to-home-screen affordances.
 - Use the latest stable versions available at implementation time for core dependencies.

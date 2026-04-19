@@ -38,7 +38,9 @@ export function createParsedReceiptOcrProvider(
 }
 
 export function getReceiptOcrProviderName(): ReceiptOcrProviderName {
-  const providerName = readEnvironmentValue('OCR_PROVIDER')
+  const providerName = normalizeProviderName(
+    readEnvironmentValue('OCR_PROVIDER'),
+  )
 
   if (!providerName) {
     return 'openai'
@@ -55,4 +57,15 @@ function readEnvironmentValue(name: string) {
   const viteEnv = import.meta.env as Record<string, string | undefined>
 
   return process.env[name] ?? viteEnv[name]
+}
+
+function normalizeProviderName(value: string | undefined) {
+  const normalized =
+    value
+      ?.trim()
+      .replace(/^['"]+|['"]+$/g, '')
+      .trim()
+      .toLowerCase() ?? ''
+
+  return normalized.length > 0 ? normalized : null
 }

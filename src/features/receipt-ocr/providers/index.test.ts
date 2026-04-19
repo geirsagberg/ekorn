@@ -32,6 +32,24 @@ describe('receipt OCR provider selection', () => {
     expect(createOpenAiReceiptProviderMock).toHaveBeenCalledTimes(1)
   })
 
+  it('treats blank OCR_PROVIDER values as unset', () => {
+    process.env.OCR_PROVIDER = '   '
+
+    expect(getReceiptOcrProviderName()).toBe('openai')
+  })
+
+  it('accepts OCR_PROVIDER values with mixed case or whitespace', () => {
+    process.env.OCR_PROVIDER = ' OpenAI '
+
+    expect(getReceiptOcrProviderName()).toBe('openai')
+  })
+
+  it('accepts OCR_PROVIDER values wrapped in quotes', () => {
+    process.env.OCR_PROVIDER = '"openai"'
+
+    expect(getReceiptOcrProviderName()).toBe('openai')
+  })
+
   it('throws a clean error for an unsupported provider', () => {
     process.env.OCR_PROVIDER = 'aws'
 
