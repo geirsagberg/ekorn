@@ -1,14 +1,20 @@
+import { createServerConvexHttpClient } from '#/integrations/convex/server-http-client'
 import type { ReceiptOcrPreviewResult } from '../shared'
+import { createConvexReceiptCategorizationRepository } from './convex-repository'
 import { createOpenAiReceiptCategorizer } from './openai'
-import { createReceiptCategorizationRepository } from './repository'
+import { getSharedInMemoryReceiptCategorizationRepository } from './repository'
 import { categorizeReceiptPreview } from './service'
 
 export async function categorizeReceiptPreviewResult(
   previewResult: ReceiptOcrPreviewResult,
 ) {
+  const convexClient = createServerConvexHttpClient()
+
   return categorizeReceiptPreview({
     previewResult,
-    repository: createReceiptCategorizationRepository(),
+    repository: convexClient
+      ? createConvexReceiptCategorizationRepository(convexClient)
+      : getSharedInMemoryReceiptCategorizationRepository(),
     ai: createOpenAiReceiptCategorizer(),
   })
 }

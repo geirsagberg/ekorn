@@ -1,5 +1,3 @@
-import { ConvexHttpClient } from 'convex/browser'
-import { anyApi } from 'convex/server'
 import {
   DEFAULT_CATEGORY_PERSISTENCE_THRESHOLD,
   DEFAULT_CATEGORY_REPLACEMENT_DELTA,
@@ -83,84 +81,8 @@ export interface ReceiptCategorizationRepository {
   ): Promise<PersistAiSuggestionResult>
 }
 
-export function createReceiptCategorizationRepository() {
-  const convexUrl =
-    readEnvironmentValue('CONVEX_URL') ??
-    readEnvironmentValue('VITE_CONVEX_URL')
-
-  if (convexUrl) {
-    return new ConvexReceiptCategorizationRepository(convexUrl)
-  }
-
-  return getMemoryRepository()
-}
-
 export function createInMemoryReceiptCategorizationRepository() {
   return new MemoryReceiptCategorizationRepository()
-}
-
-class ConvexReceiptCategorizationRepository
-  implements ReceiptCategorizationRepository
-{
-  private readonly client: ConvexHttpClient
-
-  constructor(url: string) {
-    this.client = new ConvexHttpClient(url, { logger: false })
-  }
-
-  async ensureStarterTaxonomy() {
-    await this.client.mutation(anyApi.categorization.ensureStarterTaxonomy, {})
-  }
-
-  async getRawMappings(rawLabelKeys: string[]) {
-    const uniqueKeys = [...new Set(rawLabelKeys)]
-
-    if (uniqueKeys.length === 0) {
-      return new Map()
-    }
-
-    const rows = (await this.client.query(
-      anyApi.categorization.getRawMappings,
-      {
-        rawLabelKeys: uniqueKeys,
-      },
-    )) as ReceiptCategorizationRawMapping[]
-
-    return new Map(rows.map((row) => [row.rawLabelKey, row]))
-  }
-
-  async getNormalizedMappings(normalizedLabelKeys: string[]) {
-    const uniqueKeys = [...new Set(normalizedLabelKeys)]
-
-    if (uniqueKeys.length === 0) {
-      return new Map()
-    }
-
-    const rows = (await this.client.query(
-      anyApi.categorization.getNormalizedMappings,
-      {
-        normalizedLabelKeys: uniqueKeys,
-      },
-    )) as ReceiptCategorizationNormalizedMapping[]
-
-    return new Map(rows.map((row) => [row.normalizedLabelKey, row]))
-  }
-
-  async listTaxonomyPaths() {
-    return (await this.client.query(
-      anyApi.categorization.listTaxonomyPaths,
-      {},
-    )) as string[][]
-  }
-
-  async persistAiSuggestion(input: PersistAiSuggestionInput) {
-    return (await this.client.mutation(
-      anyApi.categorization.persistAiSuggestion,
-      {
-        ...input,
-      },
-    )) as PersistAiSuggestionResult
-  }
 }
 
 export class MemoryReceiptCategorizationRepository
@@ -351,7 +273,7 @@ export class MemoryReceiptCategorizationRepository
   }
 }
 
-function getMemoryRepository() {
+export function getSharedInMemoryReceiptCategorizationRepository() {
   const globalStore = globalThis as typeof globalThis & {
     __ekornReceiptCategorizationRepository?:
       | MemoryReceiptCategorizationRepository
@@ -364,12 +286,6 @@ function getMemoryRepository() {
   }
 
   return globalStore.__ekornReceiptCategorizationRepository
-}
-
-function readEnvironmentValue(name: string) {
-  const viteEnv = import.meta.env as Record<string, string | undefined>
-
-  return process.env[name] ?? viteEnv[name]
 }
 
 function selectPreferredMapping<
