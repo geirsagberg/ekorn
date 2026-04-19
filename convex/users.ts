@@ -146,6 +146,16 @@ export async function upsertCurrentUser(ctx: MutationCtx) {
   }
 }
 
+export async function requireAllowedCurrentUser(ctx: MutationCtx) {
+  const user = await upsertCurrentUser(ctx)
+
+  if (!user.isAllowed) {
+    throw new Error(NOT_AUTHORIZED_MESSAGE)
+  }
+
+  return user
+}
+
 export async function getCurrentUserOrThrow(ctx: QueryCtx | MutationCtx) {
   const identity = await requireIdentity(ctx)
   const user = await getStoredCurrentUser(ctx)

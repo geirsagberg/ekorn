@@ -1,6 +1,5 @@
 import { v } from 'convex/values'
 import { deriveSavedReceiptStatus } from '../src/features/receipt-ocr/saved-receipts'
-import { authPolicyMessages } from '../src/integrations/auth/server-access-policy'
 import type { Id } from './_generated/dataModel'
 import {
   type MutationCtx,
@@ -12,7 +11,7 @@ import {
   receiptOcrPreviewResultValidator,
   savedReceiptFxConversionValidator,
 } from './receiptTypes'
-import { getCurrentUserOrThrow, upsertCurrentUser } from './users'
+import { getCurrentUserOrThrow, requireAllowedCurrentUser } from './users'
 
 export const list = query({
   args: {},
@@ -33,11 +32,7 @@ export const list = query({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    const user = await upsertCurrentUser(ctx)
-
-    if (!user.isAllowed) {
-      throw new Error(authPolicyMessages.notAuthorized)
-    }
+    await requireAllowedCurrentUser(ctx)
 
     return await ctx.storage.generateUploadUrl()
   },
@@ -53,11 +48,7 @@ export const create = mutation({
     storageId: v.id('_storage'),
   },
   handler: async (ctx, args) => {
-    const user = await upsertCurrentUser(ctx)
-
-    if (!user.isAllowed) {
-      throw new Error(authPolicyMessages.notAuthorized)
-    }
+    const user = await requireAllowedCurrentUser(ctx)
 
     const receiptId = await ctx.db.insert('receipts', {
       userId: user._id,
@@ -92,11 +83,7 @@ export const update = mutation({
     receiptId: v.id('receipts'),
   },
   handler: async (ctx, args) => {
-    const user = await upsertCurrentUser(ctx)
-
-    if (!user.isAllowed) {
-      throw new Error(authPolicyMessages.notAuthorized)
-    }
+    const user = await requireAllowedCurrentUser(ctx)
 
     const receipt = await requireOwnedReceipt(ctx, args.receiptId, user._id)
 
@@ -126,11 +113,7 @@ export const remove = mutation({
     receiptId: v.id('receipts'),
   },
   handler: async (ctx, args) => {
-    const user = await upsertCurrentUser(ctx)
-
-    if (!user.isAllowed) {
-      throw new Error(authPolicyMessages.notAuthorized)
-    }
+    const user = await requireAllowedCurrentUser(ctx)
 
     const receipt = await requireOwnedReceipt(ctx, args.receiptId, user._id)
 
