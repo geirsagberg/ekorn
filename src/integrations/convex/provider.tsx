@@ -8,9 +8,12 @@ import { ConvexProviderWithAuth } from 'convex/react'
 import { useCallback, useMemo } from 'react'
 
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL
-export const convexQueryClient = CONVEX_URL
-  ? new ConvexQueryClient(CONVEX_URL)
-  : null
+
+export function createConvexQueryClient(url: string | null = CONVEX_URL) {
+  return url ? new ConvexQueryClient(url) : null
+}
+
+export const convexQueryClient = createConvexQueryClient()
 
 export default function AppConvexProvider({
   children,

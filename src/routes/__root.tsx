@@ -1,7 +1,5 @@
-import type { ConvexQueryClient } from '@convex-dev/react-query'
 import CssBaseline from '@mui/material/CssBaseline'
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -10,31 +8,25 @@ import {
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { createServerFn } from '@tanstack/react-start'
 import { getAuth } from '@workos/authkit-tanstack-react-start'
+import { createServerSessionState } from '../integrations/auth/server-session'
 import ConvexProvider from '../integrations/convex/provider'
+import { syncServerSessionToConvexQueryClient } from '../integrations/convex/server-auth'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
+import type { AppRouterContext } from '../integrations/tanstack-query/root-provider'
 
-interface MyRouterContext {
-  convexQueryClient: ConvexQueryClient | null
-  queryClient: QueryClient
-}
+const fetchServerSession = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const auth = await getAuth()
 
-const fetchWorkosAuth = createServerFn({ method: 'GET' }).handler(async () => {
-  const auth = await getAuth()
-  const { user } = auth
+    return createServerSessionState(auth)
+  },
+)
 
-  return {
-    token: user ? auth.accessToken : null,
-    userId: user?.id ?? null,
-  }
-})
-
-export const Route = createRootRouteWithContext<MyRouterContext>()({
+export const Route = createRootRouteWithContext<AppRouterContext>()({
   beforeLoad: async (ctx) => {
-    const { token } = await fetchWorkosAuth()
+    const session = await fetchServerSession()
 
-    if (token) {
-      ctx.context.convexQueryClient?.serverHttpClient?.setAuth(token)
-    }
+    syncServerSessionToConvexQueryClient(ctx.context.convexQueryClient, session)
   },
   head: () => ({
     meta: [
