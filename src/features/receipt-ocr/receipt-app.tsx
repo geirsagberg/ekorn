@@ -36,7 +36,10 @@ import {
   getSavedReceiptStatusLabel,
   type SavedReceipt,
 } from './saved-receipts'
-import type { ReceiptOcrPreviewResult } from './shared'
+import {
+  type ReceiptOcrPreviewResult,
+  sanitizeReceiptOcrPreviewResult,
+} from './shared'
 
 type ReceiptAppView =
   | { kind: 'capture' }
@@ -223,16 +226,17 @@ export function CloudReceiptApp({
       onReceiptCaptured={async ({ analysis, imageFile }) => {
         try {
           const createdAt = new Date().toISOString()
+          const sanitizedAnalysis = sanitizeReceiptOcrPreviewResult(analysis)
           const storageId = await uploadReceiptImage({
             file: imageFile,
             generateUploadUrl,
           })
           const fxConversion = await fxConversionService.resolveForReceipt({
-            analysis,
+            analysis: sanitizedAnalysis,
             createdAt,
           })
           const savedReceipt = await createReceipt({
-            analysis,
+            analysis: sanitizedAnalysis,
             createdAt,
             fxConversion,
             imageName: imageFile.name,
@@ -261,7 +265,9 @@ export function CloudReceiptApp({
             receiptId: receipt.id,
           })
 
-          const analysis = await analyzeReceipt({ data: formData })
+          const analysis = sanitizeReceiptOcrPreviewResult(
+            await analyzeReceipt({ data: formData }),
+          )
           const fxConversion = await fxConversionService.resolveForReceipt({
             analysis,
             createdAt: receipt.createdAt,

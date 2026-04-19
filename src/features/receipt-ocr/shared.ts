@@ -14,7 +14,9 @@ export interface ReceiptOcrParsedItem {
   confidence?: number
 }
 
-export interface ReceiptOcrPreviewItem extends ReceiptOcrParsedItem {
+export interface ReceiptOcrPreviewItem {
+  text: string
+  amount: number | null
   categories: string[]
   categorizationConfidence: number | null
   categorizationSource: ReceiptItemCategorizationSource | null
@@ -58,4 +60,32 @@ export interface ReceiptOcrProvider {
 export interface ReceiptOcrParsedProvider {
   providerName: ReceiptOcrProviderName
   analyzeReceipt(file: File): Promise<ReceiptOcrParsedResult>
+}
+
+export function sanitizeReceiptOcrPreviewResult(
+  analysis: ReceiptOcrPreviewResult,
+): ReceiptOcrPreviewResult {
+  return {
+    items: analysis.items.map((item) => ({
+      text: item.text,
+      amount: item.amount,
+      categories: [...item.categories],
+      categorizationConfidence: item.categorizationConfidence,
+      categorizationSource: item.categorizationSource,
+      isLowConfidence: item.isLowConfidence,
+    })),
+    merchantName: analysis.merchantName,
+    purchaseDate: analysis.purchaseDate,
+    subtotal: analysis.subtotal,
+    total: analysis.total,
+    currency: analysis.currency,
+    sanityCheck: {
+      itemSum: analysis.sanityCheck.itemSum,
+      compareTarget: analysis.sanityCheck.compareTarget,
+      expected: analysis.sanityCheck.expected,
+      delta: analysis.sanityCheck.delta,
+      status: analysis.sanityCheck.status,
+    },
+    rawWarnings: [...analysis.rawWarnings],
+  }
 }

@@ -72,7 +72,8 @@ export function buildReceiptOcrPreviewResult(
   return {
     ...parsedResult,
     items: parsedResult.items.map((item) => ({
-      ...item,
+      text: item.text,
+      amount: item.amount,
       categories: [],
       categorizationConfidence: null,
       categorizationSource: null,

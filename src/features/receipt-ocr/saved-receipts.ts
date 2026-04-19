@@ -1,6 +1,9 @@
 import { logReceiptDebug } from './debug'
 import type { SavedReceiptFxConversion } from './fx-rate/shared'
-import type { ReceiptOcrPreviewResult } from './shared'
+import {
+  type ReceiptOcrPreviewResult,
+  sanitizeReceiptOcrPreviewResult,
+} from './shared'
 
 export type SavedReceiptStatus = 'ready' | 'needs-review'
 
@@ -40,21 +43,22 @@ export function buildSavedReceipt({
   fxConversion = null,
   imageFile,
 }: CreateSavedReceiptInput): SavedReceipt {
+  const sanitizedAnalysis = sanitizeReceiptOcrPreviewResult(analysis)
   const savedReceipt = {
     id: createSavedReceiptId(),
     createdAt: createdAt ?? new Date().toISOString(),
-    merchant: analysis.merchantName,
-    total: analysis.total,
-    subtotal: analysis.subtotal,
-    currency: analysis.currency,
-    status: deriveSavedReceiptStatus(analysis),
+    merchant: sanitizedAnalysis.merchantName,
+    total: sanitizedAnalysis.total,
+    subtotal: sanitizedAnalysis.subtotal,
+    currency: sanitizedAnalysis.currency,
+    status: deriveSavedReceiptStatus(sanitizedAnalysis),
     fxConversion,
     imageBlob: imageFile,
     imageName: imageFile.name,
     imageType: imageFile.type,
     imageUrl: null,
     imageStorageId: null,
-    analysis,
+    analysis: sanitizedAnalysis,
   }
 
   logReceiptDebug('storage', {
@@ -93,15 +97,16 @@ export function updateSavedReceipt({
   fxConversion = null,
   receipt,
 }: UpdateSavedReceiptInput): SavedReceipt {
+  const sanitizedAnalysis = sanitizeReceiptOcrPreviewResult(analysis)
   const updatedReceipt = {
     ...receipt,
-    merchant: analysis.merchantName,
-    total: analysis.total,
-    subtotal: analysis.subtotal,
-    currency: analysis.currency,
-    status: deriveSavedReceiptStatus(analysis),
+    merchant: sanitizedAnalysis.merchantName,
+    total: sanitizedAnalysis.total,
+    subtotal: sanitizedAnalysis.subtotal,
+    currency: sanitizedAnalysis.currency,
+    status: deriveSavedReceiptStatus(sanitizedAnalysis),
     fxConversion,
-    analysis,
+    analysis: sanitizedAnalysis,
   }
 
   logReceiptDebug('storage', {

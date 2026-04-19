@@ -8,7 +8,7 @@ describe('buildReceiptOcrPreviewResult', () => {
   it('adds warnings for missing amounts and mismatched totals', () => {
     const result = buildReceiptOcrPreviewResult({
       items: [
-        { text: 'Milk', amount: 2.5 },
+        { text: 'Milk', amount: 2.5, confidence: 0.97 },
         { text: 'Bread', amount: null },
       ],
       merchantName: 'Coop Mega',
@@ -33,6 +33,24 @@ describe('buildReceiptOcrPreviewResult', () => {
     })
     expect(result.merchantName).toBe('Coop Mega')
     expect(result.purchaseDate).toBe('2026-04-18')
+    expect(result.items).toEqual([
+      {
+        text: 'Milk',
+        amount: 2.5,
+        categories: [],
+        categorizationConfidence: null,
+        categorizationSource: null,
+        isLowConfidence: false,
+      },
+      {
+        text: 'Bread',
+        amount: null,
+        categories: [],
+        categorizationConfidence: null,
+        categorizationSource: null,
+        isLowConfidence: false,
+      },
+    ])
   })
 })
 
