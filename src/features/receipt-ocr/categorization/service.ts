@@ -1,3 +1,4 @@
+import { logReceiptDebug } from '../debug'
 import type {
   ReceiptItemCategorizationSource,
   ReceiptOcrPreviewResult,
@@ -91,6 +92,14 @@ export async function categorizeReceiptPreview({
       : null
 
     if (rawResolvedMapping) {
+      logCategorizationDecision({
+        categories: rawResolvedMapping.categories,
+        confidence: rawResolvedMapping.confidence,
+        itemText: indexedItem.item.text,
+        normalizedLabel: rawResolvedMapping.normalizedLabel,
+        source: 'raw_cache',
+        usedStoredCategorization: true,
+      })
       items[indexedItem.itemIndex] = buildCategorizedItem(
         indexedItem.item,
         rawResolvedMapping.categories,
@@ -105,6 +114,14 @@ export async function categorizeReceiptPreview({
     )
 
     if (normalizedMapping) {
+      logCategorizationDecision({
+        categories: normalizedMapping.categories,
+        confidence: normalizedMapping.confidence,
+        itemText: indexedItem.item.text,
+        normalizedLabel: normalizedMapping.normalizedLabel,
+        source: 'normalized_cache',
+        usedStoredCategorization: true,
+      })
       items[indexedItem.itemIndex] = buildCategorizedItem(
         indexedItem.item,
         normalizedMapping.categories,
@@ -118,6 +135,12 @@ export async function categorizeReceiptPreview({
       itemIndex: indexedItem.itemIndex,
       rawLabelKey: indexedItem.rawLabelKey,
       normalizedCandidate: indexedItem.normalizedCandidate,
+    })
+    logCategorizationDecision({
+      itemText: indexedItem.item.text,
+      normalizedLabel: indexedItem.normalizedCandidate,
+      source: 'miss',
+      usedStoredCategorization: false,
     })
   }
 
@@ -150,6 +173,14 @@ export async function categorizeReceiptPreview({
     const suggestion = aiSuggestionsByIndex.get(miss.itemIndex)
 
     if (!item || !suggestion) {
+      if (item) {
+        logCategorizationDecision({
+          itemText: item.text,
+          normalizedLabel: miss.normalizedCandidate,
+          source: 'no_suggestion',
+          usedStoredCategorization: false,
+        })
+      }
       continue
     }
 
@@ -158,6 +189,12 @@ export async function categorizeReceiptPreview({
       .filter((category) => category.length > 0)
 
     if (categories.length === 0) {
+      logCategorizationDecision({
+        itemText: item.text,
+        normalizedLabel: suggestion.normalizedLabel,
+        source: 'empty_categories',
+        usedStoredCategorization: false,
+      })
       continue
     }
 
@@ -173,6 +210,15 @@ export async function categorizeReceiptPreview({
         confidence: suggestion.confidence,
       })
 
+      logCategorizationDecision({
+        categories: persisted.categories,
+        confidence: persisted.confidence,
+        itemText: item.text,
+        normalizedLabel: suggestion.normalizedLabel,
+        persisted: true,
+        source: suggestion.source,
+        usedStoredCategorization: false,
+      })
       items[miss.itemIndex] = buildCategorizedItem(
         item,
         persisted.categories,
@@ -183,6 +229,15 @@ export async function categorizeReceiptPreview({
     }
 
     if (suggestion.confidence >= DEFAULT_CATEGORY_DISPLAY_THRESHOLD) {
+      logCategorizationDecision({
+        categories,
+        confidence: suggestion.confidence,
+        itemText: item.text,
+        normalizedLabel: suggestion.normalizedLabel,
+        persisted: false,
+        source: suggestion.source,
+        usedStoredCategorization: false,
+      })
       items[miss.itemIndex] = buildCategorizedItem(
         item,
         categories,
@@ -196,6 +251,13 @@ export async function categorizeReceiptPreview({
     ...previewResult,
     items,
   }
+}
+
+function logCategorizationDecision(details: Record<string, unknown>) {
+  logReceiptDebug('categorization', {
+    event: 'categorization_decision',
+    ...details,
+  })
 }
 
 function buildCategorizedItem(

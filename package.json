@@ -19,7 +19,6 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@aws-sdk/client-textract": "^3.1027.0",
     "@convex-dev/react-query": "0.1.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

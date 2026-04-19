@@ -4,7 +4,6 @@ import type {
   ReceiptOcrProvider,
   ReceiptOcrProviderName,
 } from '../shared'
-import { createAwsReceiptOcrProvider } from './aws'
 import { createOpenAiReceiptProvider } from './openai'
 
 export function createReceiptOcrProvider(
@@ -33,8 +32,6 @@ export function createParsedReceiptOcrProvider(
   switch (providerName) {
     case 'openai':
       return createOpenAiReceiptProvider()
-    case 'aws':
-      return createAwsReceiptOcrProvider()
     default:
       throw new Error('Receipt OCR provider is not supported.')
   }
@@ -47,7 +44,7 @@ export function getReceiptOcrProviderName(): ReceiptOcrProviderName {
     return 'openai'
   }
 
-  if (providerName === 'aws' || providerName === 'openai') {
+  if (providerName === 'openai') {
     return providerName
   }
 
