@@ -4,6 +4,7 @@
 - Build the app with TanStack Start, React, TypeScript, TanStack Query, and Convex.
 - Use the latest stable versions of core dependencies at implementation time.
 - Keep feature-specific requirements in `SPEC.md`; keep this file minimal.
+- Update `SPEC.md` as part of feature work whenever behavior, scope, or requirements change.
 - Prefer an incremental, mobile-first, minimal UI style: build one screen at a time, keep styling restrained and readable, avoid speculative pages or abstractions, and prefer Material UI over utility-class-heavy styling.
 
 <!-- convex-ai-start -->

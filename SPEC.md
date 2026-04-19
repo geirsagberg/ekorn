@@ -3,7 +3,7 @@
 ## Summary
 Ekorn is a mobile-first web app for capturing grocery receipts and turning them into structured receipt data.
 
-The current product slice is a receipt OCR preview flow on a single mobile-first capture screen, while longer-term spending analysis and richer receipt management remain ahead.
+The current product slice is a receipt OCR and AI-assisted categorization preview flow on a single mobile-first capture screen, while longer-term spending analysis and richer receipt management remain ahead.
 
 ## Current Goal
 The current goal is a single mobile-first receipt capture and preview screen with one clear primary action: add a receipt photo.
@@ -16,9 +16,10 @@ After selection, the app should:
 - show the selected receipt image on the same screen
 - run OCR analysis on the uploaded image
 - show extracted line items and summary totals when available
+- show suggested categories for extracted receipt lines when categorization succeeds
 - show clear loading, warning, and failure states
 
-This slice is intentionally narrow. It focuses on the app shell, mobile interaction model, image upload flow, and OCR preview, with persistence, history, review workflows, and dashboards planned separately.
+This slice is intentionally narrow. It focuses on the app shell, mobile interaction model, image upload flow, OCR preview, and preview-time learned categorization, with receipt persistence, history, review workflows, and dashboards planned separately.
 
 ## Current Slice Scope
 
@@ -33,6 +34,11 @@ This slice is intentionally narrow. It focuses on the app shell, mobile interact
 - Basic client-side receipt image validation, including image-only uploads and file-size limits.
 - Receipt OCR preview on upload.
 - Extracted line items display.
+- AI-assisted receipt-line categorization during preview.
+- Category chips and confidence display for categorized line items.
+- Deterministic line-label normalization for categorization cache keys.
+- Persistent learned mappings for raw labels and normalized labels through Convex.
+- Seeded grocery taxonomy with system-generated extension when no existing path fits.
 - Extracted subtotal and total display when present.
 - Sanity-check warnings when extracted line items do not match receipt totals closely enough.
 - Retryable error states when OCR fails.
@@ -42,11 +48,9 @@ This slice is intentionally narrow. It focuses on the app shell, mobile interact
 - Receipt list pages or history views.
 - Receipt detail pages beyond the current capture-and-preview screen.
 - Structured receipt review and correction flows.
-- AI-based item normalization beyond OCR extraction.
-- AI-based tagging.
+- User-managed category editing or override flows.
+- Household-specific categorization or taxonomy overrides.
 - Spending dashboards and summaries across multiple receipts.
-- Taxonomy and tag hierarchy.
-- Learned mappings.
 - Duplicate detection.
 - Authentication.
 - Shared household access.
@@ -55,7 +59,7 @@ This slice is intentionally narrow. It focuses on the app shell, mobile interact
 - Background jobs or processing pipelines.
 
 ## Primary User Story
-As a user on my phone, I want to tap one button and add a receipt photo from the camera or gallery so that I can quickly capture a receipt right after shopping and immediately preview what the app extracted.
+As a user on my phone, I want to tap one button and add a receipt photo from the camera or gallery so that I can quickly capture a receipt right after shopping and immediately preview what the app extracted and how it was categorized.
 
 ## Screen Requirements
 
@@ -77,7 +81,7 @@ As a user on my phone, I want to tap one button and add a receipt photo from the
 - Picking state if needed.
 - Selected-photo state.
 - OCR analyzing state.
-- Success state with extracted receipt data.
+- Success state with extracted receipt data and category suggestions.
 - Warning state when the OCR result is usable but needs review.
 - Error state for invalid files or failed OCR analysis.
 
@@ -88,14 +92,17 @@ As a user on my phone, I want to tap one button and add a receipt photo from the
 - No speculative complexity.
 - Prefer reliable browser behavior over clever UI.
 - Prefer a useful preview over premature workflow branching.
+- Show category suggestions as lightweight guidance, not as a full review workflow.
 
 ## Technical Direction For This Phase
 - Package manager/runtime: Bun.
 - App framework: TanStack Start in SPA mode.
 - UI: React + TypeScript.
 - Data fetching and cache sync: TanStack Query.
-- Backend: Convex, with persistence work planned in a later phase.
+- Backend: Convex for taxonomy storage and learned categorization mappings.
 - OCR preview runs through pluggable providers.
+- Categorization runs after OCR preview and reuses persistent cache entries before calling AI.
+- Category taxonomy is global, English, and seeded with core grocery branches.
 - Use the latest stable versions available at implementation time for core dependencies.
 
 ## Deferred Product Vision
@@ -103,11 +110,8 @@ These remain part of the broader product direction:
 - Persisted receipt storage.
 - Receipt history.
 - Structured receipt review and correction.
-- AI-assisted item normalization.
-- AI-assisted item tagging.
 - Spending dashboards.
-- Tag hierarchies and rollups.
-- Learned mappings and reuse.
+- Richer taxonomy curation, overrides, and rollups.
 - Duplicate detection.
 - Authentication and household sharing.
 - Admin and audit views.
@@ -115,8 +119,8 @@ These remain part of the broader product direction:
 ## Likely Next Phases
 1. Persist the selected receipt asset.
 2. Add basic receipt history.
-3. Add structured receipt review and correction.
-4. Add post-review normalization and tagging.
+3. Add structured receipt review, correction, and category override workflows.
+4. Add household-aware taxonomy and learned mapping management.
 5. Add multi-receipt spending views and summaries.
 
 ## Success Criteria For The Current Slice
@@ -127,5 +131,7 @@ These remain part of the broader product direction:
 - The selected image is shown on the same screen.
 - OCR analysis starts automatically after image selection.
 - Extracted items and summary totals are shown when parsing succeeds.
+- Category suggestions are shown for receipt lines when categorization succeeds.
+- Learned categorization reuse reduces repeated AI work for duplicate or normalized line labels.
 - The app shows clear warning and error feedback when analysis is incomplete or fails.
 - The experience feels clean and obvious on a phone.
