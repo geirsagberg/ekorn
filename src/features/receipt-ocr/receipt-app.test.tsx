@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SavedReceiptFxConversion } from './fx-rate/shared'
@@ -284,6 +285,49 @@ describe('ReceiptFlowApp', () => {
     expect(
       screen.getByText('Stored categorization from a normalized label match.'),
     ).toBeTruthy()
+  })
+
+  it('opens a single receipt item detail dialog from the structured item list', async () => {
+    const dataSource = createMemoryReceiptFlowDataSource([
+      buildSavedReceipt({
+        analysis: createOcrResult(),
+        imageFile: new File(['image'], 'saved-receipt.jpg', {
+          type: 'image/jpeg',
+        }),
+      }),
+    ])
+
+    render(<ReceiptFlowApp analyzeReceipt={vi.fn()} dataSource={dataSource} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'History' }))
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Open receipt from Unknown merchant',
+      }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'View details for Milk' }),
+    )
+
+    expect(await screen.findByText('Item detail')).toBeTruthy()
+    const dialog = screen.getByRole('dialog')
+
+    expect(within(dialog).getByText('Milk')).toBeTruthy()
+    expect(within(dialog).getByText('Food')).toBeTruthy()
+    expect(within(dialog).getByText('Dairy')).toBeTruthy()
+    expect(within(dialog).getByText('Ready')).toBeTruthy()
+    expect(within(dialog).getByText('91%')).toBeTruthy()
+    expect(
+      within(dialog).getByText(
+        'Stored categorization from a normalized label match.',
+      ),
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('Item detail')).toBeNull()
+    })
   })
 
   it('deletes a saved receipt without affecting the rest of the flow', async () => {

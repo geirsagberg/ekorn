@@ -282,6 +282,14 @@ function ReceiptStructuredDetail({
 }: {
   result: ReceiptOcrPreviewResult
 }) {
+  const [selectedItem, setSelectedItem] = useState<
+    | (ReturnType<typeof buildDisplayItems>[number] & {
+        currency: ReceiptOcrPreviewResult['currency']
+      })
+    | null
+  >(null)
+  const displayItems = buildDisplayItems(result.items)
+
   return (
     <Stack spacing={2}>
       {result.sanityCheck.status === 'warning' ? (
@@ -305,6 +313,9 @@ function ReceiptStructuredDetail({
         <Typography sx={{ fontWeight: 700, color: '#2f2417' }}>
           Structured receipt
         </Typography>
+        <Typography variant="body2" sx={{ color: '#5a4a36' }}>
+          Tap an item to see its categorization details.
+        </Typography>
         <Stack
           spacing={1}
           sx={{
@@ -315,8 +326,46 @@ function ReceiptStructuredDetail({
           }}
           data-testid="receipt-line-items"
         >
-          {buildDisplayItems(result.items).map(({ item, key }) => (
-            <Stack key={key} spacing={0.9} data-testid="receipt-line-item">
+          {displayItems.map(({ item, key }) => (
+            <Stack
+              key={key}
+              spacing={0.9}
+              data-testid="receipt-line-item"
+              role="button"
+              tabIndex={0}
+              aria-label={`View details for ${item.text}`}
+              onClick={() => {
+                setSelectedItem({
+                  currency: result.currency,
+                  item,
+                  key,
+                })
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  setSelectedItem({
+                    currency: result.currency,
+                    item,
+                    key,
+                  })
+                }
+              }}
+              sx={{
+                cursor: 'pointer',
+                borderRadius: 2,
+                p: 1,
+                mx: -1,
+                transition: 'background-color 120ms ease',
+                '&:hover': {
+                  bgcolor: 'rgba(47, 125, 87, 0.06)',
+                },
+                '&:focus-visible': {
+                  outline: '2px solid rgba(47, 125, 87, 0.38)',
+                  outlineOffset: 2,
+                },
+              }}
+            >
               <Stack
                 direction="row"
                 spacing={2}
@@ -386,6 +435,120 @@ function ReceiptStructuredDetail({
         </Stack>
       </Stack>
 
+      <Dialog
+        open={selectedItem !== null}
+        onClose={() => {
+          setSelectedItem(null)
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Item detail</DialogTitle>
+        <DialogContent dividers>
+          {selectedItem ? (
+            <Stack spacing={2}>
+              <Stack spacing={0.5}>
+                <Typography sx={{ fontWeight: 700, color: '#2f2417' }}>
+                  {selectedItem.item.text}
+                </Typography>
+                <Typography sx={{ color: '#5a4a36' }}>
+                  {formatMoney(selectedItem.item.amount, selectedItem.currency)}
+                </Typography>
+              </Stack>
+
+              {selectedItem.item.isLowConfidence ? (
+                <Alert severity="warning">
+                  This item was flagged for review because the categorization is
+                  uncertain.
+                </Alert>
+              ) : null}
+
+              <SummaryRow
+                label="Review status"
+                value={
+                  selectedItem.item.isLowConfidence ? 'Needs review' : 'Ready'
+                }
+              />
+
+              <Stack spacing={0.75}>
+                <Typography sx={{ color: '#5a4a36' }}>Categories</Typography>
+                {(selectedItem.item.categories?.length ?? 0) > 0 ? (
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    sx={{ flexWrap: 'wrap', rowGap: 0.75 }}
+                  >
+                    {selectedItem.item.categories.map((category) => (
+                      <Chip
+                        key={`${selectedItem.key}-${category}`}
+                        label={category}
+                        size="small"
+                        variant={
+                          selectedItem.item.isLowConfidence
+                            ? 'outlined'
+                            : 'filled'
+                        }
+                        sx={{
+                          borderRadius: 999,
+                          bgcolor: selectedItem.item.isLowConfidence
+                            ? 'transparent'
+                            : 'rgba(47, 125, 87, 0.12)',
+                          borderColor: selectedItem.item.isLowConfidence
+                            ? 'rgba(176, 127, 42, 0.35)'
+                            : 'transparent',
+                          color: selectedItem.item.isLowConfidence
+                            ? '#8a6430'
+                            : '#215740',
+                          '& .MuiChip-label': {
+                            px: 1.1,
+                            fontWeight: 600,
+                          },
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography sx={{ color: '#2f2417' }}>
+                    No category assigned yet.
+                  </Typography>
+                )}
+              </Stack>
+
+              <SummaryRow
+                label="Confidence"
+                value={
+                  selectedItem.item.categorizationConfidence !== null
+                    ? formatConfidence(
+                        selectedItem.item.categorizationConfidence,
+                      )
+                    : 'Unavailable'
+                }
+              />
+              <Stack spacing={0.5}>
+                <Typography sx={{ color: '#5a4a36' }}>
+                  Categorization source
+                </Typography>
+                <Typography sx={{ color: '#2f2417' }}>
+                  {describeCategorizationSource(
+                    selectedItem.item.categorizationSource,
+                  )}
+                </Typography>
+              </Stack>
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button
+            onClick={() => {
+              setSelectedItem(null)
+            }}
+            sx={{ textTransform: 'none' }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {result.subtotal !== null || result.total !== null ? (
         <Stack spacing={0.75} data-testid="receipt-summary">
           <Typography sx={{ fontWeight: 700, color: '#2f2417' }}>
@@ -443,6 +606,12 @@ function ConfidenceInfoButton({
       <IconButton
         aria-label={`Category confidence details: ${confidenceLabel} confidence`}
         size="small"
+        onClick={(event) => {
+          event.stopPropagation()
+        }}
+        onKeyDown={(event) => {
+          event.stopPropagation()
+        }}
         sx={{
           width: 24,
           height: 24,

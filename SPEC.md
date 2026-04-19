@@ -90,6 +90,7 @@ When a receipt is captured in a foreign currency, the app should also try to con
 ### Receipt Detail
 - Defaults to structured receipt data, not the raw image.
 - Shows extracted line items, categories, and summary totals when available.
+- Lets the user tap a line item to inspect that item's amount, categories, confidence, and review status.
 - Shows `Needs review` status when the saved result is uncertain.
 - Shows original totals and, when available, a home-currency conversion summary with a short note about the historical FX rate used.
 - Reveals the original receipt image only after an explicit user action.
