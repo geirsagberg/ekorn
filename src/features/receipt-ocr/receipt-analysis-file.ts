@@ -5,10 +5,13 @@ import {
 import {
   type AnalyzeReceiptFn,
   MAX_RECEIPT_IMAGE_SIZE_BYTES,
+  type ReceiptImageRotationDegrees,
   type ReceiptImageRotationRequiredResult,
   type ReceiptOcrAnalysisResult,
   type ReceiptOcrPreviewResult,
 } from './shared'
+
+const MAX_ROTATION_CORRECTION_ATTEMPTS = 3
 
 export interface AnalyzeReceiptImageFileOptions {
   analyzeReceipt: AnalyzeReceiptFn
@@ -26,36 +29,42 @@ export async function analyzeReceiptImageFile({
   file,
   onRotationRequired,
 }: AnalyzeReceiptImageFileOptions): Promise<AnalyzeReceiptImageFileResult> {
-  const preparedFile = await prepareReceiptImageForAnalysis(file)
-  validateAnalysisFileSize(preparedFile)
+  let analysisFile = await prepareReceiptImageForAnalysis(file)
+  let appliedRotationDegrees: ReceiptImageRotationDegrees[] = []
 
-  const firstResult = await analyzeFile(analyzeReceipt, preparedFile)
+  for (
+    let attempt = 0;
+    attempt <= MAX_ROTATION_CORRECTION_ATTEMPTS;
+    attempt += 1
+  ) {
+    validateAnalysisFileSize(analysisFile)
 
-  if (firstResult.kind === 'parsed') {
-    return {
-      analysis: firstResult.analysis,
-      imageFile: preparedFile,
+    const result = await analyzeFile(analyzeReceipt, analysisFile)
+
+    if (result.kind === 'parsed') {
+      return {
+        analysis: result.analysis,
+        imageFile: analysisFile,
+      }
     }
+
+    if (attempt === MAX_ROTATION_CORRECTION_ATTEMPTS) {
+      throw new Error('Could not rotate this receipt image automatically.')
+    }
+
+    onRotationRequired?.(result)
+    const rotationDegrees = chooseRotationDegrees(
+      result.rotationDegrees,
+      appliedRotationDegrees,
+    )
+    appliedRotationDegrees = [...appliedRotationDegrees, rotationDegrees]
+    analysisFile = await rotateReceiptImageForAnalysis(
+      analysisFile,
+      rotationDegrees,
+    )
   }
 
-  onRotationRequired?.(firstResult)
-
-  const rotatedFile = await rotateReceiptImageForAnalysis(
-    preparedFile,
-    firstResult.rotationDegrees,
-  )
-  validateAnalysisFileSize(rotatedFile)
-
-  const retryResult = await analyzeFile(analyzeReceipt, rotatedFile)
-
-  if (retryResult.kind === 'rotation_required') {
-    throw new Error('Receipt image still appears rotated after correction.')
-  }
-
-  return {
-    analysis: retryResult.analysis,
-    imageFile: rotatedFile,
-  }
+  throw new Error('Could not rotate this receipt image automatically.')
 }
 
 async function analyzeFile(
@@ -72,4 +81,27 @@ function validateAnalysisFileSize(file: File) {
   if (file.size > MAX_RECEIPT_IMAGE_SIZE_BYTES) {
     throw new Error('Choose an image smaller than 10 MB.')
   }
+}
+
+function chooseRotationDegrees(
+  requestedRotationDegrees: ReceiptImageRotationDegrees,
+  attemptedRotationDegrees: ReceiptImageRotationDegrees[],
+) {
+  if (!attemptedRotationDegrees.includes(requestedRotationDegrees)) {
+    return requestedRotationDegrees
+  }
+
+  return getUntestedRotationDegrees(attemptedRotationDegrees)
+}
+
+function getUntestedRotationDegrees(
+  attemptedRotationDegrees: ReceiptImageRotationDegrees[],
+): ReceiptImageRotationDegrees {
+  for (const rotationDegrees of [90, 180, 270] as const) {
+    if (!attemptedRotationDegrees.includes(rotationDegrees)) {
+      return rotationDegrees
+    }
+  }
+
+  return 180
 }
