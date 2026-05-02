@@ -11,7 +11,10 @@ import type { SavedReceiptFxConversion } from './fx-rate/shared'
 import { ReceiptFlowApp } from './receipt-flow-app'
 import type { ReceiptFlowDataSource } from './receipt-flow-data-source'
 import { buildSavedReceipt, type SavedReceipt } from './saved-receipts'
-import type { ReceiptOcrPreviewResult } from './shared'
+import type {
+  ReceiptOcrAnalysisResult,
+  ReceiptOcrPreviewResult,
+} from './shared'
 
 const createObjectUrlMock = vi.fn(() => 'blob:receipt-preview')
 const revokeObjectUrlMock = vi.fn()
@@ -37,7 +40,7 @@ describe('ReceiptFlowApp', () => {
   it('saves successful captures and opens receipt detail', async () => {
     const analyzeReceipt = vi
       .fn()
-      .mockResolvedValue(createOcrResult({ merchantName: 'Coop Mega' }))
+      .mockResolvedValue(createParsedOcrResult({ merchantName: 'Coop Mega' }))
     const dataSource = createMemoryReceiptFlowDataSource()
     const { container } = render(
       <ReceiptFlowApp
@@ -441,7 +444,7 @@ describe('ReceiptFlowApp', () => {
     })
     const dataSource = createMemoryReceiptFlowDataSource([initialReceipt])
     const analyzeReceipt = vi.fn().mockResolvedValue(
-      createOcrResult({
+      createParsedOcrResult({
         items: [
           {
             text: 'Milk',
@@ -492,10 +495,10 @@ describe('ReceiptFlowApp', () => {
       }),
     })
     const dataSource = createMemoryReceiptFlowDataSource([initialReceipt])
-    let resolveAnalyzeReceipt!: (result: ReceiptOcrPreviewResult) => void
+    let resolveAnalyzeReceipt!: (result: ReceiptOcrAnalysisResult) => void
     const analyzeReceipt = vi.fn(
       () =>
-        new Promise<ReceiptOcrPreviewResult>((resolve) => {
+        new Promise<ReceiptOcrAnalysisResult>((resolve) => {
           resolveAnalyzeReceipt = resolve
         }),
     )
@@ -524,7 +527,7 @@ describe('ReceiptFlowApp', () => {
     })
 
     resolveAnalyzeReceipt(
-      createOcrResult({
+      createParsedOcrResult({
         merchantName: 'Updated merchant',
       }),
     )
@@ -566,9 +569,15 @@ function createMemoryReceiptFlowDataSource(
         throw new Error('Could not find this receipt to update.')
       }
 
-      const nextAnalysis = await analyzeReceipt({
+      const nextAnalysisResult = await analyzeReceipt({
         data: new FormData(),
       })
+
+      if (nextAnalysisResult.kind === 'rotation_required') {
+        throw new Error(nextAnalysisResult.message)
+      }
+
+      const nextAnalysis = nextAnalysisResult.analysis
 
       const updatedReceipt = {
         ...currentReceipt,
@@ -640,6 +649,15 @@ function createOcrResult(
     },
     rawWarnings: [],
     ...overrides,
+  }
+}
+
+function createParsedOcrResult(
+  overrides: Partial<ReceiptOcrPreviewResult> = {},
+) {
+  return {
+    kind: 'parsed' as const,
+    analysis: createOcrResult(overrides),
   }
 }
 

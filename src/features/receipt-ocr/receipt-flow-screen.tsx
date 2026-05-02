@@ -6,11 +6,12 @@ import Container from '@mui/material/Container'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import { PwaInstallPrompt } from '#/integrations/pwa/install-prompt'
+import type { AnalyzeReceiptImageFileResult } from './receipt-analysis-file'
 import { ReceiptCaptureScreen } from './receipt-capture-screen'
 import { ReceiptDetailScreen } from './receipt-detail-screen'
 import { ReceiptHistoryScreen } from './receipt-history-screen'
 import type { SavedReceipt } from './saved-receipts'
-import type { AnalyzeReceiptFn, ReceiptOcrPreviewResult } from './shared'
+import type { AnalyzeReceiptFn } from './shared'
 
 export type ReceiptFlowView =
   | { kind: 'capture' }
@@ -20,10 +21,7 @@ export type ReceiptFlowView =
 interface ReceiptFlowScreenProps {
   analyzeReceipt: AnalyzeReceiptFn
   isLoadingReceipts: boolean
-  onCaptureSuccess: (capture: {
-    analysis: ReceiptOcrPreviewResult
-    imageFile: File
-  }) => Promise<void>
+  onCaptureSuccess: (capture: AnalyzeReceiptImageFileResult) => Promise<void>
   onDeleteReceipt: (receiptId: string) => Promise<void>
   onOpenReceipt: (receiptId: string) => void
   onReprocessReceipt: (receipt: SavedReceipt) => Promise<void>

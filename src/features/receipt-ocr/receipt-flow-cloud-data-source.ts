@@ -7,6 +7,7 @@ import {
   createReceiptFxConversionService,
   type ResolveReceiptFxConversionInput,
 } from './fx-rate'
+import { analyzeReceiptImageFile } from './receipt-analysis-file'
 import { loadReceiptImageFile, uploadReceiptImage } from './receipt-flow-image'
 import type {
   ReceiptFlowDataSource,
@@ -79,24 +80,24 @@ export function createCloudReceiptFlowDataSource(
     },
     async reprocessReceipt({ analyzeReceipt, receipt }) {
       const imageFile = await loadReceiptImageFile(receipt)
-      const formData = new FormData()
-      formData.set('receiptImage', imageFile)
 
       logReceiptDebug('storage', {
         event: 'receipt_reprocess_requested',
         receiptId: receipt.id,
       })
 
-      const analysis = sanitizeReceiptOcrPreviewResult(
-        await analyzeReceipt({ data: formData }),
-      )
+      const { analysis } = await analyzeReceiptImageFile({
+        analyzeReceipt,
+        file: imageFile,
+      })
+      const sanitizedAnalysis = sanitizeReceiptOcrPreviewResult(analysis)
       const fxConversion = await resolveFxConversion({
-        analysis,
+        analysis: sanitizedAnalysis,
         createdAt: receipt.createdAt,
       })
 
       return await updateReceipt({
-        analysis,
+        analysis: sanitizedAnalysis,
         fxConversion,
         receiptId: receipt.id as Id<'receipts'>,
       })

@@ -21,6 +21,7 @@ import { analyzeReceiptPreview } from '#/features/receipt-ocr/analyze-receipt'
 import { ReceiptFlowApp } from '#/features/receipt-ocr/receipt-flow-app'
 import { useConvexReceiptFlowDataSource } from '#/features/receipt-ocr/receipt-flow-data-source'
 import { createIndexedDbReceiptFlowDataSource } from '#/features/receipt-ocr/receipt-flow-indexeddb-data-source'
+import type { AnalyzeReceiptFn } from '#/features/receipt-ocr/shared'
 import {
   AuthenticatedViewerStateProvider,
   useAuthenticatedViewerState,
@@ -90,9 +91,7 @@ function App() {
 function AuthenticatedApp({
   analyzeReceipt,
 }: {
-  analyzeReceipt: (options: {
-    data: FormData
-  }) => Promise<import('#/features/receipt-ocr/shared').ReceiptOcrPreviewResult>
+  analyzeReceipt: AnalyzeReceiptFn
 }) {
   const viewer = useQuery(api.users.current, {})
   const syncState = useStoreCurrentUserEffect()
@@ -141,9 +140,7 @@ function AuthenticatedApp({
 function AllowedReceiptApp({
   analyzeReceipt,
 }: {
-  analyzeReceipt: (options: {
-    data: FormData
-  }) => Promise<import('#/features/receipt-ocr/shared').ReceiptOcrPreviewResult>
+  analyzeReceipt: AnalyzeReceiptFn
 }) {
   const receiptFlow = useConvexReceiptFlowDataSource()
 
@@ -159,9 +156,7 @@ function AllowedReceiptApp({
 function LocalTestingApp({
   analyzeReceipt,
 }: {
-  analyzeReceipt: (options: {
-    data: FormData
-  }) => Promise<import('#/features/receipt-ocr/shared').ReceiptOcrPreviewResult>
+  analyzeReceipt: AnalyzeReceiptFn
 }) {
   const [dataSource] = useState(() => createIndexedDbReceiptFlowDataSource())
 

@@ -1,9 +1,11 @@
 import { buildReceiptOcrPreviewResult } from '../normalize'
 import type {
   ReceiptOcrParsedProvider,
+  ReceiptOcrParsedResult,
   ReceiptOcrProvider,
   ReceiptOcrProviderName,
 } from '../shared'
+import { ReceiptImageRotationRequiredError } from '../shared'
 import { createOpenAiReceiptProvider } from './openai'
 
 export function createReceiptOcrProvider(
@@ -14,14 +16,32 @@ export function createReceiptOcrProvider(
   return {
     providerName: parsedProvider.providerName,
     analyzeReceipt: async (file) => {
-      const parsedResult = await parsedProvider.analyzeReceipt(file)
+      let parsedResult: ReceiptOcrParsedResult
+
+      try {
+        parsedResult = await parsedProvider.analyzeReceipt(file)
+      } catch (error) {
+        if (error instanceof ReceiptImageRotationRequiredError) {
+          return {
+            kind: 'rotation_required',
+            rotationDegrees: error.rotationDegrees,
+            message: error.message,
+          }
+        }
+
+        throw error
+      }
+
       const previewResult = buildReceiptOcrPreviewResult(parsedResult)
 
       if (previewResult.items.length === 0) {
         throw new Error('No line items were detected. Try a clearer photo.')
       }
 
-      return previewResult
+      return {
+        kind: 'parsed',
+        analysis: previewResult,
+      }
     },
   }
 }

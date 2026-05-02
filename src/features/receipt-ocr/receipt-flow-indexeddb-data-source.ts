@@ -1,4 +1,5 @@
 import { logReceiptDebug } from './debug'
+import { analyzeReceiptImageFile } from './receipt-analysis-file'
 import { loadReceiptImageFile } from './receipt-flow-image'
 import type { ReceiptFlowDataSource } from './receipt-flow-types'
 import {
@@ -31,15 +32,16 @@ export function createIndexedDbReceiptFlowDataSource(
     },
     async reprocessReceipt({ analyzeReceipt, receipt }) {
       const imageFile = await loadReceiptImageFile(receipt)
-      const formData = new FormData()
-      formData.set('receiptImage', imageFile)
 
       logReceiptDebug('storage', {
         event: 'receipt_reprocess_requested',
         receiptId: receipt.id,
       })
 
-      const analysis = await analyzeReceipt({ data: formData })
+      const { analysis } = await analyzeReceiptImageFile({
+        analyzeReceipt,
+        file: imageFile,
+      })
 
       return await receiptRepository.updateReceipt({
         analysis,

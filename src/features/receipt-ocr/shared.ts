@@ -1,6 +1,7 @@
 export const MAX_RECEIPT_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 
 export type ReceiptOcrProviderName = 'openai'
+export type ReceiptImageRotationDegrees = 90 | 180 | 270
 
 export type ReceiptItemCategorizationSource =
   | 'raw_cache'
@@ -52,13 +53,35 @@ export interface ReceiptOcrPreviewResult {
   rawWarnings: string[]
 }
 
+export interface ReceiptOcrParsedAnalysisResult {
+  kind: 'parsed'
+  analysis: ReceiptOcrPreviewResult
+}
+
+export interface ReceiptImageRotationRequiredResult {
+  kind: 'rotation_required'
+  rotationDegrees: ReceiptImageRotationDegrees
+  message: string
+}
+
+export class ReceiptImageRotationRequiredError extends Error {
+  constructor(public readonly rotationDegrees: ReceiptImageRotationDegrees) {
+    super('Receipt image needs rotation before parsing.')
+    this.name = 'ReceiptImageRotationRequiredError'
+  }
+}
+
+export type ReceiptOcrAnalysisResult =
+  | ReceiptOcrParsedAnalysisResult
+  | ReceiptImageRotationRequiredResult
+
 export type AnalyzeReceiptFn = (options: {
   data: FormData
-}) => Promise<ReceiptOcrPreviewResult>
+}) => Promise<ReceiptOcrAnalysisResult>
 
 export interface ReceiptOcrProvider {
   providerName: ReceiptOcrProviderName
-  analyzeReceipt(file: File): Promise<ReceiptOcrPreviewResult>
+  analyzeReceipt(file: File): Promise<ReceiptOcrAnalysisResult>
 }
 
 export interface ReceiptOcrParsedProvider {

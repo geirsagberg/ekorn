@@ -16,6 +16,7 @@ vi.mock('openai', () => {
   }
 })
 
+import { ReceiptImageRotationRequiredError } from '../shared'
 import {
   createOpenAiReceiptProvider,
   normalizeOpenAiReceiptParseResult,
@@ -34,6 +35,8 @@ describe('OpenAI receipt OCR provider', () => {
     responsesCreateMock.mockResolvedValue({
       output: [{ type: 'message', content: [] }],
       output_text: JSON.stringify({
+        resultType: 'parsed',
+        rotationDegrees: null,
         items: [
           { text: 'Milk', amount: 2.5, confidence: 0.97 },
           { text: 'Bread', amount: 4.5, confidence: 0.94 },
@@ -66,12 +69,19 @@ describe('OpenAI receipt OCR provider', () => {
       currency: 'USD',
       rawWarnings: [],
     })
+    expect(responsesCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructions: expect.stringContaining('If the receipt needs rotation'),
+      }),
+    )
   })
 
   it('keeps empty item lists and missing subtotal values when the model returns them', async () => {
     responsesCreateMock.mockResolvedValue({
       output: [{ type: 'message', content: [] }],
       output_text: JSON.stringify({
+        resultType: 'parsed',
+        rotationDegrees: null,
         items: [],
         merchantName: null,
         purchaseDate: '2026-04-18',
@@ -99,6 +109,34 @@ describe('OpenAI receipt OCR provider', () => {
       currency: null,
       rawWarnings: ['Total was inferred from the receipt footer.'],
     })
+  })
+
+  it('returns structured rotation feedback instead of parsing rotated images', async () => {
+    responsesCreateMock.mockResolvedValue({
+      output: [{ type: 'message', content: [] }],
+      output_text: JSON.stringify({
+        resultType: 'rotation_required',
+        rotationDegrees: 90,
+        items: [],
+        merchantName: null,
+        purchaseDate: null,
+        subtotal: null,
+        total: null,
+        currency: null,
+        rawWarnings: [],
+      }),
+    })
+
+    const provider = createOpenAiReceiptProvider({
+      apiKey: 'test-openai-key',
+      model: null,
+    })
+
+    await expect(
+      provider.analyzeReceipt(
+        new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' }),
+      ),
+    ).rejects.toThrow(ReceiptImageRotationRequiredError)
   })
 
   it('maps refusals to a user-safe unreadable-receipt error', async () => {
@@ -185,6 +223,8 @@ describe('OpenAI receipt OCR provider', () => {
   it('normalizes structured output by dropping blank rows', () => {
     expect(
       normalizeOpenAiReceiptParseResult({
+        resultType: 'parsed',
+        rotationDegrees: null,
         items: [
           { text: '  Milk  ', amount: 2.5, confidence: 0.97 },
           { text: '   ', amount: 1.5, confidence: 0.5 },
@@ -210,6 +250,8 @@ describe('OpenAI receipt OCR provider', () => {
   it('normalizes malformed purchase dates to null', () => {
     expect(
       normalizeOpenAiReceiptParseResult({
+        resultType: 'parsed',
+        rotationDegrees: null,
         items: [{ text: 'Milk', amount: 2.5, confidence: 0.97 }],
         merchantName: 'Rema 1000',
         purchaseDate: '2026-02-30',

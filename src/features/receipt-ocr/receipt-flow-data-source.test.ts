@@ -170,7 +170,7 @@ describe('createIndexedDbReceiptFlowDataSource', () => {
       currency: input.analysis.currency,
     }))
     const analyzeReceipt = vi.fn(async () =>
-      createOcrResult({
+      createParsedOcrResult({
         merchantName: 'Updated merchant',
       }),
     )
@@ -239,6 +239,15 @@ function createOcrResult(
     },
     rawWarnings: [],
     ...overrides,
+  }
+}
+
+function createParsedOcrResult(
+  overrides: Partial<Parameters<typeof buildSavedReceipt>[0]['analysis']> = {},
+) {
+  return {
+    kind: 'parsed' as const,
+    analysis: createOcrResult(overrides),
   }
 }
 

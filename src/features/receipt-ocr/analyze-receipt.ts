@@ -11,12 +11,12 @@ import { logReceiptDebug } from './debug'
 import { createReceiptOcrProvider } from './providers'
 import {
   MAX_RECEIPT_IMAGE_SIZE_BYTES,
-  type ReceiptOcrPreviewResult,
+  type ReceiptOcrAnalysisResult,
 } from './shared'
 
 export const analyzeReceiptPreview = createServerFn({ method: 'POST' })
   .inputValidator((data: FormData) => data)
-  .handler(async ({ data }): Promise<ReceiptOcrPreviewResult> => {
+  .handler(async ({ data }): Promise<ReceiptOcrAnalysisResult> => {
     if (!isLocalAuthBypassEnabled()) {
       const { user } = await getAuth()
       const authenticatedUser = requireAuthenticatedValue(
@@ -45,7 +45,19 @@ export const analyzeReceiptPreview = createServerFn({ method: 'POST' })
 
     try {
       const provider = createReceiptOcrProvider()
-      const previewResult = await provider.analyzeReceipt(file)
+      const analysisResult = await provider.analyzeReceipt(file)
+
+      if (analysisResult.kind === 'rotation_required') {
+        logReceiptDebug('ocr', {
+          event: 'receipt_rotation_required',
+          providerName: provider.providerName,
+          rotationDegrees: analysisResult.rotationDegrees,
+        })
+
+        return analysisResult
+      }
+
+      const previewResult = analysisResult.analysis
 
       logReceiptDebug('ocr', {
         event: 'receipt_preview_built',
@@ -63,7 +75,10 @@ export const analyzeReceiptPreview = createServerFn({ method: 'POST' })
           providerName: provider.providerName,
         })
 
-        return categorizedResult
+        return {
+          kind: 'parsed',
+          analysis: categorizedResult,
+        }
       } catch (error) {
         logReceiptDebug('categorization', {
           event: 'receipt_preview_categorization_failed',
@@ -71,7 +86,10 @@ export const analyzeReceiptPreview = createServerFn({ method: 'POST' })
           providerName: provider.providerName,
         })
 
-        return previewResult
+        return {
+          kind: 'parsed',
+          analysis: previewResult,
+        }
       }
     } catch (error) {
       throw toReceiptOcrError(error)

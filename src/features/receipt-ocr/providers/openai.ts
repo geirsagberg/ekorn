@@ -1,7 +1,10 @@
 import OpenAI from 'openai'
 import type { Response } from 'openai/resources/responses/responses'
 import { logReceiptDebug } from '../debug'
-import type { ReceiptOcrParsedProvider } from '../shared'
+import {
+  ReceiptImageRotationRequiredError,
+  type ReceiptOcrParsedProvider,
+} from '../shared'
 
 const DEFAULT_OPENAI_MODEL = 'gpt-5.4-mini'
 
@@ -9,6 +12,8 @@ const OPENAI_RECEIPT_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: [
+    'resultType',
+    'rotationDegrees',
     'items',
     'merchantName',
     'purchaseDate',
@@ -18,6 +23,11 @@ const OPENAI_RECEIPT_JSON_SCHEMA = {
     'rawWarnings',
   ],
   properties: {
+    resultType: { type: 'string', enum: ['parsed', 'rotation_required'] },
+    rotationDegrees: {
+      type: ['number', 'null'],
+      enum: [90, 180, 270, null],
+    },
     items: {
       type: 'array',
       items: {
@@ -80,6 +90,9 @@ export function createOpenAiReceiptProvider(
           model,
           instructions: [
             'You extract structured grocery receipt data from a single receipt image.',
+            'Before extracting receipt data, check whether the receipt text is visibly sideways or upside down in the image pixels.',
+            'If the receipt needs rotation, return resultType rotation_required, set rotationDegrees to the clockwise degrees needed to make the receipt upright, leave items empty, set receipt fields to null, and do not parse line items in this response.',
+            'If the receipt is already upright, return resultType parsed and rotationDegrees null.',
             'Return only purchasable line items in items.',
             'Do not include subtotal, tax, discount, tip, or total rows in items.',
             'Extract merchantName when you can infer the store or merchant confidently from the receipt header, otherwise return null.',
@@ -140,6 +153,16 @@ export function createOpenAiReceiptProvider(
           rawWarnings: parsed.rawWarnings,
         }
       } catch (error) {
+        if (error instanceof ReceiptImageRotationRequiredError) {
+          logReceiptDebug('ocr', {
+            event: 'openai_receipt_rotation_required',
+            model,
+            rotationDegrees: error.rotationDegrees,
+          })
+
+          throw error
+        }
+
         logReceiptDebug('ocr', {
           event: 'openai_receipt_failed',
           model,
@@ -162,6 +185,16 @@ export function normalizeOpenAiReceiptParseResult(
   value: unknown,
 ): OpenAiReceiptParseResult {
   if (!isRecord(value)) {
+    throw new Error('Receipt OCR failed. Try another photo.')
+  }
+
+  if (value.resultType === 'rotation_required') {
+    throw new ReceiptImageRotationRequiredError(
+      parseRotationDegrees(value.rotationDegrees),
+    )
+  }
+
+  if (value.resultType !== 'parsed') {
     throw new Error('Receipt OCR failed. Try another photo.')
   }
 
@@ -280,6 +313,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseOptionalNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function parseRotationDegrees(value: unknown) {
+  if (value === 90 || value === 180 || value === 270) {
+    return value
+  }
+
+  throw new Error('Receipt OCR failed. Try another photo.')
 }
 
 function isValidPurchaseDate(value: string) {

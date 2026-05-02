@@ -77,6 +77,8 @@ When a receipt is captured in a foreign currency, the app should also try to con
 - Shows one obvious primary action to add a receipt photo.
 - Lets the browser handle camera or existing-photo choice when possible.
 - Shows the selected receipt image before or during processing.
+- Normalizes JPEG image orientation before OCR when browser image preparation is available.
+- If OCR reports that the receipt image is visibly rotated, rotates the prepared image mechanically, retries OCR once with the corrected image, and saves the corrected image for the receipt.
 - Shows an Android-focused install prompt or add-to-home-screen hint before the user installs the app.
 - Shows one clear processing state for the full analysis flow.
 - If processing succeeds, saves the receipt automatically and opens `Receipt detail`.
@@ -119,6 +121,8 @@ When a receipt is captured in a foreign currency, the app should also try to con
 - Receipt persistence: Convex tables plus Convex file storage.
 - Historical FX conversion: Frankfurter API transport pinned to ECB provider, with local IndexedDB caching and `NOK` as the default home currency.
 - OCR preview uses OpenAI through the existing provider facade.
+- Receipt images are orientation-normalized and downscaled on the client before OCR.
+- OCR may return structured `rotation_required` feedback instead of parsed receipt data; the client applies the requested rotation and retries parsing once before saving.
 - Categorization runs after OCR preview, reuses persistent cache entries before calling AI, and defaults to the same server-side OpenAI model configuration as OCR unless a dedicated categorization model override is provided.
 - Deployment target: Netlify for the TanStack Start app and Convex for backend/data.
 - PWA support: web manifest, service worker app-shell caching, and Android add-to-home-screen affordances.
@@ -137,6 +141,7 @@ These remain part of the broader product direction:
 - The app opens on `Capture`.
 - The user can add a receipt photo with one clear action.
 - The browser can offer camera or gallery selection where supported.
+- Rotated JPEG camera photos are normalized before OCR when browser image preparation is available, and visibly rotated receipt photos can be corrected and retried once before saving.
 - Android users can install the app to the home screen from a browser install prompt or clear fallback guidance.
 - The app shows one clear processing state while analysis runs.
 - Successful processing automatically saves the receipt locally.

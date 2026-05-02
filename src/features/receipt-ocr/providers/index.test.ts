@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ReceiptImageRotationRequiredError } from '../shared'
 
 const { createOpenAiReceiptProviderMock } = vi.hoisted(() => ({
   createOpenAiReceiptProviderMock: vi.fn(() => ({
@@ -13,6 +14,7 @@ vi.mock('./openai', () => ({
 
 import {
   createParsedReceiptOcrProvider,
+  createReceiptOcrProvider,
   getReceiptOcrProviderName,
 } from './index'
 
@@ -67,5 +69,26 @@ describe('receipt OCR provider selection', () => {
     expect(() => createParsedReceiptOcrProvider()).toThrow(
       'Receipt OCR is not configured yet.',
     )
+  })
+
+  it('maps provider rotation feedback to a structured analysis result', async () => {
+    createOpenAiReceiptProviderMock.mockReturnValueOnce({
+      providerName: 'openai' as const,
+      analyzeReceipt: vi.fn(async () => {
+        throw new ReceiptImageRotationRequiredError(270)
+      }),
+    })
+
+    const provider = createReceiptOcrProvider('openai')
+
+    await expect(
+      provider.analyzeReceipt(
+        new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' }),
+      ),
+    ).resolves.toEqual({
+      kind: 'rotation_required',
+      rotationDegrees: 270,
+      message: 'Receipt image needs rotation before parsing.',
+    })
   })
 })
