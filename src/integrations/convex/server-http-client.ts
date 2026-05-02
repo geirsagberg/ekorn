@@ -1,11 +1,13 @@
 import { ConvexHttpClient } from 'convex/browser'
 
+const bundledViteConvexUrl = import.meta.env?.VITE_CONVEX_URL
+
 export function resolveServerConvexUrl() {
-  return (
-    readEnvironmentValue('CONVEX_URL') ??
-    readEnvironmentValue('VITE_CONVEX_URL') ??
-    null
-  )
+  return resolveServerConvexUrlFromEnvironment({
+    CONVEX_URL: process.env.CONVEX_URL,
+    VITE_CONVEX_URL: process.env.VITE_CONVEX_URL,
+    bundledViteConvexUrl,
+  })
 }
 
 export function createServerConvexHttpClient() {
@@ -18,8 +20,25 @@ export function createServerConvexHttpClient() {
   return new ConvexHttpClient(convexUrl, { logger: false })
 }
 
-function readEnvironmentValue(name: string) {
-  const viteEnv = import.meta.env as Record<string, string | undefined>
+export function resolveServerConvexUrlFromEnvironment(environment: {
+  CONVEX_URL?: string
+  VITE_CONVEX_URL?: string
+  bundledViteConvexUrl?: string
+}) {
+  return (
+    normalizeEnvironmentValue(environment.CONVEX_URL) ??
+    normalizeEnvironmentValue(environment.VITE_CONVEX_URL) ??
+    normalizeEnvironmentValue(environment.bundledViteConvexUrl) ??
+    null
+  )
+}
 
-  return process.env[name] ?? viteEnv[name]
+function normalizeEnvironmentValue(value: string | undefined) {
+  const normalized =
+    value
+      ?.trim()
+      .replace(/^['"]+|['"]+$/g, '')
+      .trim() ?? ''
+
+  return normalized.length > 0 ? normalized : null
 }
